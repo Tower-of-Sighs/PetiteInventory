@@ -1,18 +1,15 @@
 package com.sighs.petiteinventory.init;
 
 import com.sighs.petiteinventory.loader.EntryCache;
+import com.sighs.petiteinventory.utils.ItemUtils;
 import net.minecraft.world.item.ItemStack;
 
-public class Area {
-    private ItemStack itemStack;
-    private int width;
-    private int height;
-
-    public Area(ItemStack itemStack) {
-        EntryCache
+public record Area(ItemStack itemStack, int width, int height) {
+    public static Area of(ItemStack itemStack) {
+        return ItemUtils.getArea(itemStack);
     }
 
-    public int size() {
+    public int minSize() {
         return Math.min(width, height);
     }
 }

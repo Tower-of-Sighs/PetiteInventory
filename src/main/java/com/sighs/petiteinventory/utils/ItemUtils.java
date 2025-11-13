@@ -1,5 +1,7 @@
 package com.sighs.petiteinventory.utils;
 
+import com.sighs.petiteinventory.init.Area;
+import com.sighs.petiteinventory.loader.EntryCache;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagKey;
@@ -7,6 +9,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.tags.ITagManager;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -138,5 +141,16 @@ public class ItemUtils {
 
     public static boolean isItemIdEmpty(String id) {
         return id == null || id.equals("minecraft:air");
+    }
+
+    public static Area getArea(ItemStack itemStack) {
+        int width = 1, height = 1;
+        String sizeString = EntryCache.matchItem(getItemRegistryName(itemStack.getItem()));
+        if (sizeString != null) {
+            String[] size = sizeString.split("\\*");
+            width = Integer.getInteger(size[0]);
+            height = Integer.getInteger(size[1]);
+        }
+        return new Area(itemStack, width, height);
     }
 }
