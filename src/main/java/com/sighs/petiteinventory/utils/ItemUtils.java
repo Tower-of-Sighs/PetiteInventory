@@ -148,8 +148,8 @@ public class ItemUtils {
         String sizeString = EntryCache.matchItem(getItemRegistryName(itemStack.getItem()));
         if (sizeString != null) {
             String[] size = sizeString.split("\\*");
-            width = Integer.getInteger(size[0]);
-            height = Integer.getInteger(size[1]);
+            width = Integer.parseInt(size[0]);
+            height = Integer.parseInt(size[1]);
         }
         return new Area(itemStack, width, height);
     }

@@ -1,9 +1,12 @@
 package com.sighs.petiteinventory.utils;
 
+import com.sighs.petiteinventory.Petiteinventory;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 
 public class GuiUtils {
+    public static ResourceLocation AREA = new ResourceLocation(Petiteinventory.MODID, "textures/area.png");
+
     public static void drawNinePatch(GuiGraphics graphics, ResourceLocation texture,
                                       int x, int y, int width, int height,
                                       int textureSize, int border) {

@@ -12,4 +12,9 @@ public record Area(ItemStack itemStack, int width, int height) {
     public int minSize() {
         return Math.min(width, height);
     }
+
+    @Override
+    public String toString() {
+        return "[" + itemStack + "](" + width + "," + height + ")";
+    }
 }
