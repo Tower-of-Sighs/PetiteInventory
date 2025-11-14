@@ -62,6 +62,14 @@ public class ContainerGrid {
         return result;
     }
 
+    public Set<Cell> getCells(Cell cell, Area area) {
+        int[] xRange = new int[] {cell.x, cell.x + area.width() - 1};
+        int[] yRange = new int[] {cell.y, cell.y + area.height() - 1};
+        return getCells(c -> {
+            return c.inRangeX(xRange) && c.inRangeY(yRange);
+        });
+    }
+
     public Cell getCell(int x, int y) {
         for (Cell cell : cells) {
             if (cell.x == x && cell.y == y) return cell;
@@ -96,7 +104,20 @@ public class ContainerGrid {
         return result;
     }
 
-    public static record Cell(int y, int x, Slot slot) {
+    public Map<Cell, Cell> getCellMap() {
+        Map<Cell, Cell> result = new HashMap<>();
+        for (Cell cell : cells) {
+            if (!cell.isEmpty()) {
+                Area area = Area.of(cell.slot.getItem());
+                for (int x = 0; x < area.width(); x++) for (int y = 0; y < area.width(); y++) {
+                    result.put(getCell(cell.x + x, cell.y + y), cell);
+                }
+            }
+        }
+        return result;
+    }
+
+    public record Cell(int y, int x, Slot slot) {
         public boolean isEmpty() {
             return !slot().hasItem();
         }
@@ -113,6 +134,11 @@ public class ContainerGrid {
         @Override
         public String toString() {
             return "(" + x + "," + y + ")[" + slot.getItem() + "]";
+        }
+
+        @Override
+        public boolean equals(Object object) {
+            return this.toString().equals(object.toString());
         }
     }
 }
