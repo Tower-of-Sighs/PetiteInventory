@@ -9,7 +9,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 
 @Mod.EventBusSubscriber(modid = Petiteinventory.MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class LoadEvent {
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    @SubscribeEvent
     public static void onConfigLoad(FMLCommonSetupEvent event) {
         event.enqueueWork(EntryCache::loadAllRule);
     }

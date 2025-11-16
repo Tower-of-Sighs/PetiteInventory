@@ -5,6 +5,9 @@
   "compatibilityLevel": "JAVA_8",
   "refmap": "petiteinventory.refmap.json",
   "mixins": [
+    "AbstractContainerMenuMixin",
+    "InventoryMixin",
+    "ServerPlayerMixin"
   ],
   "client": [
     "AbstractContainerScreenMixin",

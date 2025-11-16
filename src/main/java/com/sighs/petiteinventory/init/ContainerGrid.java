@@ -50,10 +50,24 @@ public class ContainerGrid {
         return grid;
     }
 
+    public int getWidth() {
+        Set<Integer> set = new HashSet<>();
+        for (Cell cell : cells) {
+            set.add(cell.x);
+        }
+        return set.size();
+    }
+    public int getHeight() {
+        Set<Integer> set = new HashSet<>();
+        for (Cell cell : cells) {
+            set.add(cell.y);
+        }
+        return set.size();
+    }
+
     public Set<Cell> getCells() {
         return cells;
     }
-
     public Set<Cell> getCells(Predicate<Cell> predicate) {
         Set<Cell> result = new HashSet<>();
         for (Cell cell : cells) {
@@ -61,13 +75,10 @@ public class ContainerGrid {
         }
         return result;
     }
-
     public Set<Cell> getCells(Cell cell, Area area) {
         int[] xRange = new int[] {cell.x, cell.x + area.width() - 1};
         int[] yRange = new int[] {cell.y, cell.y + area.height() - 1};
-        return getCells(c -> {
-            return c.inRangeX(xRange) && c.inRangeY(yRange);
-        });
+        return getCells(c -> c.inRangeX(xRange) && c.inRangeY(yRange));
     }
 
     public Cell getCell(int x, int y) {
@@ -76,7 +87,6 @@ public class ContainerGrid {
         }
         return null;
     }
-
     public Cell getCell(Slot slot) {
         for (Cell cell : cells) {
             if (cell.slot.equals(slot)) return cell;
@@ -84,11 +94,17 @@ public class ContainerGrid {
         return null;
     }
 
+    public boolean isEmpty(Cell cell, Area area) {
+        boolean result = true;
+        for (Cell c : getCells(cell, area)) {
+            if (!c.isEmpty()) result = false;
+        }
+        return result;
+    }
     public boolean isEmpty(int x, int y) {
         Cell cell = getCell(x, y);
         return cell != null && cell.isEmpty();
     }
-
     public boolean isEmpty(int[] p1, int[] p2) {
         int[] rangeX = {Math.min(p1[0], p2[0]), Math.max(p1[0], p2[0])};
         int[] rangeY = {Math.min(p1[1], p2[1]), Math.max(p1[1], p2[1])};
@@ -109,12 +125,81 @@ public class ContainerGrid {
         for (Cell cell : cells) {
             if (!cell.isEmpty()) {
                 Area area = Area.of(cell.slot.getItem());
-                for (int x = 0; x < area.width(); x++) for (int y = 0; y < area.width(); y++) {
+                for (int x = 0; x < area.width(); x++) for (int y = 0; y < area.height(); y++) {
                     result.put(getCell(cell.x + x, cell.y + y), cell);
                 }
             }
         }
         return result;
+    }
+
+    public void removeRow(int row) {
+        List<Slot> slots = new ArrayList<>();
+        for (Cell cell : cells) {
+            if (cell.y != row) slots.add(cell.slot);
+        }
+        cells = parse(slots).cells;
+    }
+    public void removeColumn(int column) {
+        List<Slot> slots = new ArrayList<>();
+        for (Cell cell : cells) {
+            if (cell.x != column) slots.add(cell.slot);
+        }
+        cells = parse(slots).cells;
+    }
+
+    /**
+     * 查找能容纳指定Area的完全空白区域，返回最左上角的Cell
+     * @param area 要放置的区域大小
+     * @return 符合条件的区域左上角Cell，如果找不到返回null
+     */
+    public Cell findEmptyArea(Area area) {
+        int requiredWidth = area.width();
+        int requiredHeight = area.height();
+
+        // 如果需求区域比网格还大，直接返回null
+        if (requiredWidth > getWidth() || requiredHeight > getHeight()) {
+            return null;
+        }
+
+        // 获取单元格占用映射，用于检查单元格是否被区域占用
+        Map<Cell, Cell> cellMap = getCellMap();
+
+        // 遍历所有可能的起始位置
+        for (int startY = 0; startY <= getHeight() - requiredHeight; startY++) {
+            for (int startX = 0; startX <= getWidth() - requiredWidth; startX++) {
+
+                // 检查以(startX, startY)为左上角的区域是否完全空白
+                if (isAreaEmpty(startX, startY, requiredWidth, requiredHeight, cellMap)) {
+                    return getCell(startX, startY);
+                }
+            }
+        }
+
+        return null; // 没有找到合适的区域
+    }
+
+    /**
+     * 检查指定矩形区域是否完全空白
+     * @param startX 区域起始X坐标
+     * @param startY 区域起始Y坐标
+     * @param width 区域宽度
+     * @param height 区域高度
+     * @param cellMap 单元格占用映射
+     * @return 如果区域完全空白返回true，否则返回false
+     */
+    private boolean isAreaEmpty(int startX, int startY, int width, int height, Map<Cell, Cell> cellMap) {
+        for (int x = startX; x < startX + width; x++) {
+            for (int y = startY; y < startY + height; y++) {
+                Cell cell = getCell(x, y);
+
+                // 检查单元格是否存在、是否为空、是否被占用
+                if (cell == null || !cell.isEmpty() || cellMap.containsKey(cell)) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     public record Cell(int y, int x, Slot slot) {

@@ -7,6 +7,7 @@ import net.minecraftforge.fml.loading.FMLPaths;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -16,6 +17,31 @@ import java.util.List;
 public class EntryLoader {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_DIR = FMLPaths.CONFIGDIR.get().resolve("PetiteInventory");
+    // 默认配置的 JSON 字符串常量
+    private static final String DEFAULT_CONFIG =
+            """
+                    [
+                      {
+                        "match": ["minecraft:bed"],
+                        "result": "3 * 2"
+                      },
+                      {
+                        "match": ["#minecraft:tools"],
+                        "result": "1 * 2"
+                      },
+                      {
+                        "match": ["#forge:stone", "#forge:ores", "#minecraft:logs"],
+                        "result": "2 * 2"
+                      },
+                      {
+                        "match": ["#minecraft:doors"],
+                        "result": "2 * 3"
+                      },
+                      {
+                        "match": ["#minecraft:slabs"],
+                        "result": "2 * 1"
+                      }
+                    ]""";
 
     public static List<Entry> loadAll() {
         List<Entry> allRule = new ArrayList<>();
@@ -32,6 +58,13 @@ public class EntryLoader {
         if (!Files.exists(path)) {
             try {
                 Files.createDirectories(path);
+                // 创建默认配置文件
+                Path defaultFile = path.resolve("default_config.json"); // 默认文件名
+                if (!Files.exists(defaultFile)) {
+                    // 写入默认配置，使用 UTF-8 编码
+                    Files.writeString(defaultFile, DEFAULT_CONFIG);
+                    System.out.println("默认配置文件已创建: " + defaultFile);
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }

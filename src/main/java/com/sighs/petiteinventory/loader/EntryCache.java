@@ -15,7 +15,6 @@ public class EntryCache {
         for (String match : rule.getMatch()) {
             if (match.startsWith("#")) {
                 TagMapCache.put(match.replace("#", ""), result);
-                return;
             } else {
                 UnitMapCache.put(match, result);
             }

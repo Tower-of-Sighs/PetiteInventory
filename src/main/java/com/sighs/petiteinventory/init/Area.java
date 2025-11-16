@@ -1,6 +1,5 @@
 package com.sighs.petiteinventory.init;
 
-import com.sighs.petiteinventory.loader.EntryCache;
 import com.sighs.petiteinventory.utils.ItemUtils;
 import net.minecraft.world.item.ItemStack;
 
@@ -11,6 +10,10 @@ public record Area(ItemStack itemStack, int width, int height) {
 
     public int minSize() {
         return Math.min(width, height);
+    }
+
+    public int maxSize() {
+        return Math.max(width, height);
     }
 
     @Override
