@@ -1,5 +1,6 @@
 package com.sighs.petiteinventory.utils;
 
+import com.sighs.petiteinventory.Config;
 import com.sighs.petiteinventory.init.Area;
 import com.sighs.petiteinventory.init.ContainerGrid;
 import net.minecraft.world.Container;
@@ -48,13 +49,18 @@ public class SlotUtils {
 
     public static ContainerGrid getContainerGrid(AbstractContainerMenu menu) {
         List<Slot> girdSlot = new ArrayList<>();
+        String menuType = menu.getClass().toString();
+        boolean matchedMenu = Config.WHITELIST.get().contains(menuType);
+        boolean enableInventory = Config.ENABLE_INVENTORY.get();
         for (Slot slot : menu.slots) {
-            if (slot.container instanceof Inventory) {
+            if ((matchedMenu && !(slot.container instanceof Inventory)) || (enableInventory && slot.container instanceof Inventory)) {
                 girdSlot.add(slot);
             }
         }
         ContainerGrid grid = ContainerGrid.parse(girdSlot);
-        grid.removeRow(grid.getHeight() - 1);
+        if (enableInventory) {
+            grid.removeRow(grid.getHeight() - 1);
+        }
         return grid;
     }
 

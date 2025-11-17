@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -22,7 +23,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -30,7 +30,8 @@ import java.util.*;
 @Mixin(value = AbstractContainerScreen.class)
 public abstract class AbstractContainerScreenMixin extends Screen {
 
-    @Shadow @Nullable protected Slot hoveredSlot;
+    @Shadow @Nullable
+    public Slot hoveredSlot;
 
     @Shadow private ItemStack draggingItem;
 
@@ -40,12 +41,17 @@ public abstract class AbstractContainerScreenMixin extends Screen {
 
     @Shadow public abstract boolean mouseReleased(double p_97812_, double p_97813_, int p_97814_);
 
+    @Shadow protected int leftPos;
+
+    @Shadow protected int topPos;
+
     protected AbstractContainerScreenMixin(Component p_96550_) {
         super(p_96550_);
     }
 
-    @Inject(method = "renderSlot", at = @At("RETURN"))
+    @Inject(method = "renderSlot", at = @At("HEAD"))
     private void onRender(GuiGraphics guiGraphics, Slot slot, CallbackInfo ci) {
+//        Petiteinventory.LOGGER.warn("drawing");
         if (!ClientUtils.isClientGridSlot(slot)) return;
         if (!slot.hasItem()) return;
         Area area = Area.of(slot.getItem());
@@ -60,19 +66,29 @@ public abstract class AbstractContainerScreenMixin extends Screen {
         );
     }
 
-    @Redirect(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/AbstractContainerScreen;renderSlotHighlight(Lnet/minecraft/client/gui/GuiGraphics;IIII)V"), remap = false)
-    private void ond(GuiGraphics guiGraphics, int x, int y, int p_283504_, int color) {
-        int w = 16, h = 16;
+    @Inject(method = "render", at = @At("RETURN"))
+    private void highlight(GuiGraphics guiGraphics, int p_283661_, int p_281248_, float p_281886_, CallbackInfo ci) {
         ItemStack cursorItem = getCursorItem();
         if (ClientUtils.isClientGridSlot(hoveredSlot) && !cursorItem.isEmpty()) {
             Area area = Area.of(cursorItem);
             ContainerGrid grid = ClientUtils.getContainerGrid();
             ContainerGrid.Cell hoverCell = grid.getCell(hoveredSlot);
             for (ContainerGrid.Cell cell : grid.getCells(hoverCell, area)) {
-                AbstractContainerScreen.renderSlotHighlight(guiGraphics, cell.slot().x, cell.slot().y, 0, color);
+                AbstractContainerScreen.renderSlotHighlight(guiGraphics, cell.slot().x + leftPos, cell.slot().y + topPos, 0, -2130706433);
             }
+        }
+    }
+
+    @Redirect(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/AbstractContainerScreen;renderSlotHighlight(Lnet/minecraft/client/gui/GuiGraphics;IIII)V"), remap = false)
+    private void ond(GuiGraphics guiGraphics, int x, int y, int p_283504_, int color) {
+        int w = 16, h = 16;
+        ItemStack cursorItem = getCursorItem();
+        if (ClientUtils.isClientGridSlot(hoveredSlot) && !cursorItem.isEmpty()) {
+
         } else {
-            hoveredSlot = ClientUtils.getMappedSlot(hoveredSlot);
+            if (!((Object) this instanceof CreativeModeInventoryScreen)) {
+                hoveredSlot = ClientUtils.getMappedSlot(hoveredSlot);
+            }
             ItemStack hoverItem = hoveredSlot.getItem();
             if (!hoverItem.isEmpty() && ClientUtils.isClientGridSlot(hoveredSlot)) {
                 Area area = Area.of(hoverItem);
@@ -88,8 +104,16 @@ public abstract class AbstractContainerScreenMixin extends Screen {
     @Unique
     private Slot needReplaceSlot = null;
 
+    @Unique
+    private boolean firstClicked = true;
+
     @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
-    private void onClick(double mouseX, double mouseY, int p_97750_, CallbackInfoReturnable<Boolean> cir) {
+    private void onReleased(double mouseX, double mouseY, int p_97750_, CallbackInfoReturnable<Boolean> cir) {
+        if (firstClicked) {
+            cir.cancel();
+            firstClicked = false;
+        }
+//        firstClicked = false;
         ItemStack cursorItem = getCursorItem();
         Slot slot = findSlot(mouseX, mouseY);
         if (cursorItem != null && ClientUtils.isClientGridSlot(slot) && needReplaceSlot == null) {
@@ -132,7 +156,13 @@ public abstract class AbstractContainerScreenMixin extends Screen {
         }
     }
 
-    @Inject(method = "renderSlot", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;renderItem(Lnet/minecraft/world/item/ItemStack;III)V"))
+    @Inject(method = "mouseDragged", at = @At("HEAD"), cancellable = true)
+    private void cancel(double p_97752_, double p_97753_, int p_97754_, double p_97755_, double p_97756_, CallbackInfoReturnable<Boolean> cir) {
+        Slot slot = this.findSlot(p_97752_, p_97753_);
+        if (ClientUtils.isClientGridSlot(slot)) cir.setReturnValue(false);
+    }
+
+    @Inject(method = "renderSlot", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;translate(FFF)V"))
     private void scale(GuiGraphics guiGraphics, Slot slot, CallbackInfo ci) {
         if (!ClientUtils.isClientGridSlot(slot)) return;
         scale(guiGraphics, Area.of(slot.getItem()), slot.x, slot.y);

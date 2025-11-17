@@ -1,6 +1,7 @@
 package com.sighs.petiteinventory.loader;
 
 import com.sighs.petiteinventory.Petiteinventory;
+import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;

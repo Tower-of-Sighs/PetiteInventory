@@ -29,6 +29,7 @@ java {
 }
 
 minecraft {
+    accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
     // The mappings can be changed at any time and must be in the following format.
     // Channel:   Version:
     // official   MCVersion             Official field/method names from Mojang mapping files
@@ -184,6 +185,11 @@ dependencies {
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
     compileOnly fg.deobf("mezz.jei:jei-1.20.1-forge-api:15.20.0.104")
     implementation fg.deobf("mezz.jei:jei-1.20.1-forge:15.20.0.104")
+    implementation fg.deobf("curse.maven:item-borders-513769:5903326")
+    implementation fg.deobf("curse.maven:iceberg-520110:5838149")
+    implementation fg.deobf("curse.maven:prism-lib-638111:4650325")
+    implementation fg.deobf("curse.maven:sophisticated-core-618298:6190554")
+    implementation fg.deobf("curse.maven:sophisticated-backpacks-422301:6178588")
 
 }
 

@@ -23,23 +23,23 @@ public class EntryLoader {
                     [
                       {
                         "match": ["minecraft:bed"],
-                        "result": "3 * 2"
+                        "result": "3*2"
                       },
                       {
                         "match": ["#minecraft:tools"],
-                        "result": "1 * 2"
+                        "result": "1*2"
                       },
                       {
                         "match": ["#forge:stone", "#forge:ores", "#minecraft:logs"],
-                        "result": "2 * 2"
+                        "result": "2*2"
                       },
                       {
                         "match": ["#minecraft:doors"],
-                        "result": "2 * 3"
+                        "result": "2*3"
                       },
                       {
                         "match": ["#minecraft:slabs"],
-                        "result": "2 * 1"
+                        "result": "2*1"
                       }
                     ]""";
 
@@ -59,11 +59,9 @@ public class EntryLoader {
             try {
                 Files.createDirectories(path);
                 // 创建默认配置文件
-                Path defaultFile = path.resolve("default_config.json"); // 默认文件名
+                Path defaultFile = path.resolve("default.json"); // 默认文件名
                 if (!Files.exists(defaultFile)) {
-                    // 写入默认配置，使用 UTF-8 编码
                     Files.writeString(defaultFile, DEFAULT_CONFIG);
-                    System.out.println("默认配置文件已创建: " + defaultFile);
                 }
             } catch (IOException e) {
                 e.printStackTrace();

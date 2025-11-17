@@ -147,7 +147,7 @@ public class ItemUtils {
         int width = 1, height = 1;
         String sizeString = EntryCache.matchItem(getItemRegistryName(itemStack.getItem()));
         if (sizeString != null) {
-            String[] size = sizeString.split("\\*");
+            String[] size = sizeString.replace(" ", "").split("\\*");
             width = Integer.parseInt(size[0]);
             height = Integer.parseInt(size[1]);
         }

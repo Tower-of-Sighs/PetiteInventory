@@ -2,6 +2,7 @@ package com.sighs.petiteinventory.loader;
 
 import com.sighs.petiteinventory.Petiteinventory;
 import net.minecraftforge.event.CommandEvent;
+import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -12,5 +13,10 @@ public class ReloadEvent {
     public static void onCommand(CommandEvent event) {
         String rawCommand = event.getParseResults().getReader().getString();
         if (rawCommand.equals("reload")) EntryCache.loadAllRule();
+    }
+
+    @SubscribeEvent
+    public static void onLoad(LevelEvent.Load event) {
+        EntryCache.loadAllRule();
     }
 }

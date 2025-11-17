@@ -133,6 +133,21 @@ public class ContainerGrid {
         return result;
     }
 
+    public Cell findArea(Area area) {
+        int size = area.width() * area.height();
+        var cellMap = getCellMap();
+        for (Cell cell : cells) {
+            var cells = getCells(cell, area);
+            if (size > cells.size()) continue;
+            boolean valid = true;
+            for (Cell c : cells) {
+                if (!c.isEmpty() || cellMap.containsKey(c)) valid = false;
+            }
+            if (valid) return cell;
+        }
+        return null;
+    }
+
     public void removeRow(int row) {
         List<Slot> slots = new ArrayList<>();
         for (Cell cell : cells) {

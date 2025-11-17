@@ -12,7 +12,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class ServerPlayerMixin {
     @Inject(method = "initMenu", at = @At("HEAD"))
     private void qqq(AbstractContainerMenu menu, CallbackInfo ci) {
-        System.out.print("put\n");
         ((IAbstractContainerMenu) menu).setPlayer((ServerPlayer) (Object) this);
     }
 }
