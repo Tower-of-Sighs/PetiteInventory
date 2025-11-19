@@ -141,7 +141,7 @@ public class ContainerGrid {
             if (size > cells.size()) continue;
             boolean valid = true;
             for (Cell c : cells) {
-                if (!c.isEmpty() || cellMap.containsKey(c)) valid = false;
+                if (!c.isEmpty() || cellMap.containsKey(c) || !c.slot.container.equals(cell.slot.container)) valid = false;
             }
             if (valid) return cell;
         }

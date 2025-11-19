@@ -74,7 +74,9 @@ public abstract class AbstractContainerScreenMixin extends Screen {
             ContainerGrid grid = ClientUtils.getContainerGrid();
             ContainerGrid.Cell hoverCell = grid.getCell(hoveredSlot);
             for (ContainerGrid.Cell cell : grid.getCells(hoverCell, area)) {
-                AbstractContainerScreen.renderSlotHighlight(guiGraphics, cell.slot().x + leftPos, cell.slot().y + topPos, 0, -2130706433);
+                if (cell.slot().container.equals(hoverCell.slot().container)) {
+                    AbstractContainerScreen.renderSlotHighlight(guiGraphics, cell.slot().x + leftPos, cell.slot().y + topPos, 0, -2130706433);
+                }
             }
         }
     }
@@ -125,7 +127,12 @@ public abstract class AbstractContainerScreenMixin extends Screen {
             ContainerGrid.Cell clickedCell = grid.getCell(slot);
 
             Area targetArea = Area.of(getCursorItem());
-            var targetAreaCells = grid.getCells(clickedCell, targetArea);
+            Set<ContainerGrid. Cell> targetAreaCells = new HashSet<>();
+            for (ContainerGrid.Cell cell : grid.getCells(clickedCell, targetArea)) {
+                if (cell.slot().container.equals(clickedCell.slot().container)) {
+                    targetAreaCells.add(cell);
+                }
+            }
             if (targetAreaCells.size() == targetArea.width() * targetArea.height()) {
                 // 获取到的格子数量和所需格子数一样，说明没过界。
                 // 目标区域内所有的区域核心格子
@@ -204,5 +211,10 @@ public abstract class AbstractContainerScreenMixin extends Screen {
         if (!cursorItem.isEmpty() && Area.of(cursorItem).maxSize() > 1 && ClientUtils.isClientGridSlot(hoveredSlot)) {
             GLFW.glfwSetInputMode(windowHandle, GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_HIDDEN);
         } else GLFW.glfwSetInputMode(windowHandle, GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL);
+    }
+
+    @Inject(method = "checkHotbarKeyPressed", at = @At("HEAD"), cancellable = true)
+    private void cancel(int p_97806_, int p_97807_, CallbackInfoReturnable<Boolean> cir) {
+        cir.cancel();
     }
 }

@@ -4,6 +4,7 @@ import com.sighs.petiteinventory.api.IAbstractContainerMenu;
 import com.sighs.petiteinventory.init.Area;
 import com.sighs.petiteinventory.init.ContainerGrid;
 import com.sighs.petiteinventory.utils.SlotUtils;
+import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.core.NonNullList;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -40,6 +41,7 @@ public abstract class AbstractContainerMenuMixin implements IAbstractContainerMe
     private void qq(int slot, int p_150401_, ClickType type, Player p_150403_, CallbackInfo ci) {
         if (slot < 0 || slot > slots.size()) return;
         if (type != ClickType.QUICK_MOVE) return;
+        if ((Object) this instanceof CreativeModeInventoryScreen.ItemPickerMenu) return;
         Slot clickedSlot = slots.get(slot);
 
         List<Slot> targetContainerSlots = new ArrayList<>();

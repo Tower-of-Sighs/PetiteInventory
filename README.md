@@ -1,3 +1,8 @@
+Copyright (c) 2025 Tower of Sighs. All rights reserved.  
+版权所有 (c) 2025 叹息之塔。 保留所有权利。
+
+---
+
 ## 娇小物品栏
 
 提供了类似生化危机4、暗黑破坏神、三角洲行动的容器布局，即一项物品占用多个槽位，并改动了相应的替换和转移操作。
@@ -10,7 +15,7 @@
 
 进入游戏后即可看到物品栏布局发生了变化：
 
-[!img](https://resource-api.xyeidc.com/client/pics/30b839f7)
+![img](https://resource-api.xyeidc.com/client/pics/30b839f7)
 
 出于游戏平衡考虑，新布局默认只对玩家物品栏生效，如果不希望对玩家物品栏生效，可以在配置文件中关闭。
 

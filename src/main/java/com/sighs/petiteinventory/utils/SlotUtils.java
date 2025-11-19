@@ -7,6 +7,7 @@ import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
@@ -52,13 +53,18 @@ public class SlotUtils {
         String menuType = menu.getClass().toString();
         boolean matchedMenu = Config.WHITELIST.get().contains(menuType);
         boolean enableInventory = Config.ENABLE_INVENTORY.get();
-        for (Slot slot : menu.slots) {
+
+        if (menu instanceof InventoryMenu) for (int i = InventoryMenu.INV_SLOT_START; i < InventoryMenu.INV_SLOT_END; i++) {
+            if (enableInventory) girdSlot.add(menu.getSlot(i));
+        }
+        else for (Slot slot : menu.slots) {
             if ((matchedMenu && !(slot.container instanceof Inventory)) || (enableInventory && slot.container instanceof Inventory)) {
                 girdSlot.add(slot);
             }
         }
+
         ContainerGrid grid = ContainerGrid.parse(girdSlot);
-        if (enableInventory) {
+        if (enableInventory && !(menu instanceof InventoryMenu)) {
             grid.removeRow(grid.getHeight() - 1);
         }
         return grid;
@@ -162,13 +168,5 @@ public class SlotUtils {
 
         // 所有槽位都有物品，返回false
         return false;
-    }
-
-    public static boolean addInventoryItem(Player player, ItemStack itemStack) {
-        Inventory inventory = player.getInventory();
-        if (hasEmptyHotbarSlot(player)) return inventory.add(itemStack);
-        int slotIndex = SlotUtils.findSlotIndexForArea(player, Area.of(itemStack));
-        if (slotIndex == -1) return false;
-        else return inventory.add(slotIndex, itemStack);
     }
 }
