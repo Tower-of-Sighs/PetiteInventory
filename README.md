@@ -1,4 +1,4 @@
-Copyright (c) 2025 Tower of Sighs. All rights reserved.
+Copyright (c) 2025 Tower of Sighs. All rights reserved.  
 版权所有 (c) 2025 叹息之塔。 保留所有权利。
 
 ---
