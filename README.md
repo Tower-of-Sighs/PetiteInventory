@@ -15,7 +15,7 @@ Copyright (c) 2025 Tower of Sighs. All rights reserved.
 
 进入游戏后即可看到物品栏布局发生了变化：
 
-[!img](https://resource-api.xyeidc.com/client/pics/30b839f7)
+![img](https://resource-api.xyeidc.com/client/pics/30b839f7)
 
 出于游戏平衡考虑，新布局默认只对玩家物品栏生效，如果不希望对玩家物品栏生效，可以在配置文件中关闭。
 
