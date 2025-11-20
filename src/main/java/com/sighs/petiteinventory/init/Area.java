@@ -3,7 +3,7 @@ package com.sighs.petiteinventory.init;
 import com.sighs.petiteinventory.utils.ItemUtils;
 import net.minecraft.world.item.ItemStack;
 
-public record Area(ItemStack itemStack, int width, int height) {
+public record Area(int width, int height, ItemStack itemStack) {
     public static Area of(ItemStack itemStack) {
         return ItemUtils.getArea(itemStack);
     }

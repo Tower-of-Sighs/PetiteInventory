@@ -7,11 +7,12 @@ import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
+import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
-@Mod.EventBusSubscriber(modid = Petiteinventory.MODID)
+@Mod.EventBusSubscriber(modid = Petiteinventory.MODID, value = Dist.CLIENT)
 public class ClientUtils {
     private static ContainerGrid clientGrid = null;
 

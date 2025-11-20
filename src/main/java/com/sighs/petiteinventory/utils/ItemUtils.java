@@ -1,12 +1,15 @@
 package com.sighs.petiteinventory.utils;
 
+import com.sighs.petiteinventory.compat.KubeJSCompat;
 import com.sighs.petiteinventory.init.Area;
+import com.sighs.petiteinventory.init.AreaEvent;
 import com.sighs.petiteinventory.loader.EntryCache;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.tags.ITagManager;
 import org.jetbrains.annotations.NotNull;
@@ -151,6 +154,9 @@ public class ItemUtils {
             width = Integer.parseInt(size[0]);
             height = Integer.parseInt(size[1]);
         }
-        return new Area(itemStack, width, height);
+        AreaEvent event = new AreaEvent(width, height, itemStack);
+        MinecraftForge.EVENT_BUS.post(event);
+        AreaEvent _event = KubeJSCompat.area(event);
+        return new Area(_event.width, _event.height, _event.itemStack);
     }
 }

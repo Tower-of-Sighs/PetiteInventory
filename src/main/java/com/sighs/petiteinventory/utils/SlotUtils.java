@@ -15,58 +15,34 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class SlotUtils {
-    public static void findIncludesArea() {
-        // 完全在目标区域内的区域，的对应核心格子。
-//        List<ContainerGrid.Cell> rangedAreaCells = new ArrayList<>();
-//        AreaCellMap.forEach((AreaCell, cells) -> {
-//            boolean inRange = true;
-//            for (ContainerGrid.Cell cell : cells) {
-//                if (!targetAreaCells.contains(cell)) {
-//                    inRange = false;
-//                    break;
-//                }
-//            }
-//            if (inRange) rangedAreaCells.add(AreaCell);
-//        });
-//        return rangedAreaCells;
-    }
-
-    public static void mappedCellTransform() {
-        // 把原始格子 -> 对应的区域核心格子，的映射，调整成，区域核心格子 -> 对应的区域内格子们，的映射。
-//        Map<ContainerGrid.Cell, Set<ContainerGrid.Cell>> AreaCellMap = new HashMap<>();
-//        cellMap.forEach((origin, mapped) -> {
-//            if (AreaCells.contains(mapped)) {
-//                if (!AreaCellMap.containsKey(mapped)) AreaCellMap.put(mapped, new HashSet<>());
-//                var set = AreaCellMap.get(mapped);
-//                set.add(origin);
-//                AreaCellMap.put(mapped, set);
-//            }
-//        });
-    }
-
-    public static boolean isSlotValid(Slot slot) {
-        return slot != null && (slot.container instanceof Inventory);
-    }
-
     public static ContainerGrid getContainerGrid(AbstractContainerMenu menu) {
-        List<Slot> girdSlot = new ArrayList<>();
         String menuType = menu.getClass().toString();
         boolean matchedMenu = Config.WHITELIST.get().contains(menuType);
         boolean enableInventory = Config.ENABLE_INVENTORY.get();
+        ContainerGrid grid;
 
-        if (menu instanceof InventoryMenu) for (int i = InventoryMenu.INV_SLOT_START; i < InventoryMenu.INV_SLOT_END; i++) {
-            if (enableInventory) girdSlot.add(menu.getSlot(i));
-        }
-        else for (Slot slot : menu.slots) {
-            if ((matchedMenu && !(slot.container instanceof Inventory)) || (enableInventory && slot.container instanceof Inventory)) {
-                girdSlot.add(slot);
+        if (menu instanceof InventoryMenu) {
+            List<Slot> girdSlot = new ArrayList<>();
+            for (int i = InventoryMenu.INV_SLOT_START; i < InventoryMenu.INV_SLOT_END; i++) {
+                if (enableInventory) girdSlot.add(menu.getSlot(i));
             }
+            grid = ContainerGrid.parse(girdSlot);
+        }
+        else {
+            List<Slot> containerSlot = new ArrayList<>();
+            List<Slot> inventorySlot = new ArrayList<>();
+            for (Slot slot : menu.slots) {
+                if (matchedMenu && !(slot.container instanceof Inventory)) containerSlot.add(slot);
+                if (enableInventory && slot.container instanceof Inventory) inventorySlot.add(slot);
+            }
+            grid = ContainerGrid.parse(containerSlot, inventorySlot);
         }
 
-        ContainerGrid grid = ContainerGrid.parse(girdSlot);
         if (enableInventory && !(menu instanceof InventoryMenu)) {
             grid.removeRow(grid.getHeight() - 1);
+            System.out.print(grid.getCells().size() + ":\n" + grid.getCells()+"\n\n");
         }
+
         return grid;
     }
 
@@ -87,7 +63,7 @@ public class SlotUtils {
         ContainerGrid grid = ContainerGrid.parse(slots);
 
         // 查找能容纳Area的空白区域
-        ContainerGrid.Cell foundCell = grid.findEmptyArea(area);
+        ContainerGrid.Cell foundCell = grid.findArea(area);
 
         if (foundCell != null) {
             // 将Cell坐标转换回槽位索引

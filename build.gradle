@@ -191,6 +191,10 @@ dependencies {
     implementation fg.deobf("curse.maven:sophisticated-core-618298:6190554")
     implementation fg.deobf("curse.maven:sophisticated-backpacks-422301:6178588")
 
+    implementation fg.deobf("curse.maven:kubejs-238086:5853326")
+    implementation fg.deobf("curse.maven:rhino-416294:6186971")
+    implementation fg.deobf("curse.maven:architectury-api-419699:5137938")
+
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.
