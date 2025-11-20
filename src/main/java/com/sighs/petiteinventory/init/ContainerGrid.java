@@ -158,9 +158,15 @@ public class ContainerGrid {
     }
 
     public Cell findArea(Area area) {
+        // 按slot.index对cells进行排序，从左上角开始搜索
+        List<Cell> sortedCells = new ArrayList<>(cells);
+        sortedCells.sort(Comparator.comparingInt(cell -> cell.slot.index));
+
         int size = area.width() * area.height();
         var cellMap = getCellMap();
-        for (Cell cell : cells) {
+
+        // 使用排序后的cells进行遍历
+        for (Cell cell : sortedCells) {
             var cells = getCells(cell, area);
             if (size > cells.size()) continue;
             boolean valid = true;
