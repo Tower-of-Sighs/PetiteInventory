@@ -40,7 +40,6 @@ public class SlotUtils {
 
         if (enableInventory && !(menu instanceof InventoryMenu)) {
             grid.removeRow(grid.getHeight() - 1);
-            System.out.print(grid.getCells().size() + ":\n" + grid.getCells()+"\n\n");
         }
 
         return grid;
