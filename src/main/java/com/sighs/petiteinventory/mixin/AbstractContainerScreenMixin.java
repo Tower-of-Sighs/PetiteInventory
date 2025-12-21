@@ -1,8 +1,13 @@
 package com.sighs.petiteinventory.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.sighs.petiteinventory.Petiteinventory;
 import com.sighs.petiteinventory.init.Area;
+import com.sighs.petiteinventory.init.BorderTheme;
 import com.sighs.petiteinventory.init.ContainerGrid;
+import com.sighs.petiteinventory.loader.BorderColorCache;
+import com.sighs.petiteinventory.network.PacketHandler;
+import com.sighs.petiteinventory.network.PlaceItemPayload;
 import com.sighs.petiteinventory.utils.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -11,6 +16,8 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -51,26 +58,37 @@ public abstract class AbstractContainerScreenMixin extends Screen {
 
     @Inject(method = "renderSlot", at = @At("HEAD"))
     private void onRender(GuiGraphics guiGraphics, Slot slot, CallbackInfo ci) {
-//        Petiteinventory.LOGGER.warn("drawing");
         if (!ClientUtils.isClientGridSlot(slot)) return;
         if (!slot.hasItem()) return;
+
         Area area = Area.of(slot.getItem());
         int x = slot.x;
         int y = slot.y;
         int w = 18 * area.width();
         int h = 18 * area.height();
-        GuiUtils.drawNinePatch(
-                guiGraphics, GuiUtils.AREA,
-                x - 1, y - 1, w, h,
-                18, 1
-        );
+
+// ✅ 修正：传入slot.getItem()而不是只传Item类型
+        BorderTheme theme = BorderColorCache.getTheme(slot.getItem().getItem(), slot.getItem());
+
+        GuiUtils.drawNinePatch(guiGraphics, theme, x - 1, y - 1, w, h, 18, 1);
+    }
+
+    @Unique
+    private int getThemeColor(BorderTheme theme) {
+        return switch (theme) {
+            case BLUE -> -16776961;    // 蓝色
+            case PURPLE -> -65281;     // 紫色
+            case ORANGE -> -256;       // 橙色
+            case RED -> -65536;        // 红色
+            default -> -2130706433;    // 默认
+        };
     }
 
     @Inject(method = "render", at = @At("RETURN"))
     private void highlight(GuiGraphics guiGraphics, int p_283661_, int p_281248_, float p_281886_, CallbackInfo ci) {
         ItemStack cursorItem = getCursorItem();
         if (ClientUtils.isClientGridSlot(hoveredSlot) && !cursorItem.isEmpty()) {
-            Area area = Area.of(cursorItem);
+            Area area = getRotatedArea(cursorItem);
             ContainerGrid grid = ClientUtils.getContainerGrid();
             ContainerGrid.Cell hoverCell = grid.getCell(hoveredSlot);
             for (ContainerGrid.Cell cell : grid.getCells(hoverCell, area)) {
@@ -109,46 +127,216 @@ public abstract class AbstractContainerScreenMixin extends Screen {
     @Unique
     private boolean firstClicked = true;
 
-    @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
-    private void onReleased(double mouseX, double mouseY, int p_97750_, CallbackInfoReturnable<Boolean> cir) {
+    @Inject(method = "mouseReleased",
+            at = @At("HEAD"),
+            cancellable = true)
+    private void onReleased(double mouseX, double mouseY, int button,
+                            CallbackInfoReturnable<Boolean> cir) {
+
+        /* ---------- 原“首次点击”保护逻辑 ---------- */
         if (firstClicked) {
-            cir.cancel();
+            cir.setReturnValue(true);
             firstClicked = false;
+            return;
         }
-//        firstClicked = false;
-        ItemStack cursorItem = getCursorItem();
+
         Slot slot = findSlot(mouseX, mouseY);
-        if (cursorItem != null && ClientUtils.isClientGridSlot(slot) && needReplaceSlot == null) {
+        ItemStack cursorItem = getCursorItem();
+
+        /* ====================== 右键放置 ====================== */
+        if (button == 1 && !cursorItem.isEmpty()
+                && slot != null && ClientUtils.isClientGridSlot(slot)) {
+
+            ContainerGrid grid   = ClientUtils.getContainerGrid();
+            ContainerGrid.Cell cell = grid.getCell(slot);
+            if (cell == null) {          // 找不到单元格 → 禁止
+                cir.setReturnValue(true);
+                return;
+            }
+
+            Area area = getRotatedArea(cursorItem);
+            Set<ContainerGrid.Cell> targetCells = grid.getCells(cell, area);
+
+            /* 1. 区域必须完整（边缘越界直接失败） */
+            if (targetCells.size() != area.width() * area.height()) {
+                cir.setReturnValue(true);
+                return;
+            }
+
+            /* 2. 同容器 */
+            boolean sameContainer = targetCells.stream()
+                    .allMatch(c -> c.slot().container.equals(cell.slot().container));
+            if (!sameContainer) {
+                cir.setReturnValue(true);
+                return;
+            }
+
+            /* 3. 空或同种且可堆叠 */
+            boolean canStack = targetCells.stream().allMatch(c -> {
+                ItemStack s = c.slot().getItem();
+                return s.isEmpty()
+                        || (ItemStack.isSameItemSameTags(s, cursorItem)
+                        && s.getCount() < s.getMaxStackSize());
+            });
+            if (!canStack) {
+                cir.setReturnValue(true);
+                return;
+            }
+
+            /* 4. 不被其它大件占用 */
+            Map<ContainerGrid.Cell, ContainerGrid.Cell> cellMap = grid.getCellMap();
+            boolean blocked = targetCells.stream()
+                    .anyMatch(c -> {
+                        ContainerGrid.Cell owner = cellMap.get(c);
+                        return owner != null && !owner.equals(cell);
+                    });
+            if (blocked) {
+                cir.setReturnValue(true);
+                return;
+            }
+            /* 全部通过 → 放行，让后续逻辑真正放置 */
+            return;
+        }
+
+        /* ====================== 以下为原左键逻辑，保持不变 ====================== */
+        if (button == 0 && !cursorItem.isEmpty() && ClientUtils.isClientGridSlot(slot)
+                && needReplaceSlot == null) {
+
             ContainerGrid grid = ClientUtils.getContainerGrid();
-
-            if (grid.getCell(slot) == null) return;
-
-            var cellMap = grid.getCellMap();
             ContainerGrid.Cell clickedCell = grid.getCell(slot);
+            if (clickedCell == null) {
+                cir.setReturnValue(true);
+                return;
+            }
 
-            Area targetArea = Area.of(getCursorItem());
-            Set<ContainerGrid. Cell> targetAreaCells = new HashSet<>();
+            Area area = getRotatedArea(cursorItem);
+            Set<ContainerGrid.Cell> targetCells = grid.getCells(clickedCell, area);
+
+            /* 1. 必须同容器 */
+            boolean sameContainer = targetCells.stream()
+                    .allMatch(c -> c.slot().container.equals(clickedCell.slot().container));
+            if (!sameContainer) {
+                cir.setReturnValue(true);
+                return;
+            }
+
+            /* 2. 是否同种物品 */
+            boolean sameKind = targetCells.stream()
+                    .anyMatch(c -> {
+                        ItemStack s = c.slot().getItem();
+                        return !s.isEmpty() && ItemStack.isSameItemSameTags(s, cursorItem);
+                    });
+
+            if (sameKind) {
+                /* ===== 同种物品：仅左上角可堆叠 ===== */
+                ContainerGrid.Cell topLeft = targetCells.stream()
+                        .min(java.util.Comparator
+                                .comparingInt(ContainerGrid.Cell::x)
+                                .thenComparingInt(ContainerGrid.Cell::y))
+                        .orElse(null);
+                if (topLeft == null || !topLeft.equals(clickedCell)) {
+                    cir.setReturnValue(true);
+                    return;
+                }
+
+                /* 3. 全区域可堆叠检测 */
+                boolean canStack = targetCells.stream().allMatch(c -> {
+                    ItemStack s = c.slot().getItem();
+                    return s.isEmpty()
+                            || (ItemStack.isSameItemSameTags(s, cursorItem)
+                            && s.getCount() < s.getMaxStackSize());
+                });
+                if (!canStack) {
+                    cir.setReturnValue(true);
+                    return;
+                }
+
+                /* 4. 不被其它大件占用 */
+                Map<ContainerGrid.Cell, ContainerGrid.Cell> cellMap = grid.getCellMap();
+                boolean blocked = targetCells.stream()
+                        .anyMatch(c -> {
+                            ContainerGrid.Cell owner = cellMap.get(c);
+                            return owner != null && !owner.equals(clickedCell);
+                        });
+                if (blocked) {
+                    cir.setReturnValue(true);
+                    return;
+                }
+                /* 通过检测 → 放行，让原版堆叠 */
+                return;
+            }
+
+            /* ===== 不同物品：走原替换逻辑 ===== */
+            Area targetArea = Area.of(cursorItem);
+            Set<ContainerGrid.Cell> targetAreaCells = new HashSet<>();
             for (ContainerGrid.Cell cell : grid.getCells(clickedCell, targetArea)) {
                 if (cell.slot().container.equals(clickedCell.slot().container)) {
                     targetAreaCells.add(cell);
                 }
             }
+
             if (targetAreaCells.size() == targetArea.width() * targetArea.height()) {
-                // 获取到的格子数量和所需格子数一样，说明没过界。
-                // 目标区域内所有的区域核心格子
-                Set<ContainerGrid.Cell> AreaCells = new HashSet<>();
+                Set<ContainerGrid.Cell> areaCells = new HashSet<>();
+                Map<ContainerGrid.Cell, ContainerGrid.Cell> cellMap = grid.getCellMap();
                 for (ContainerGrid.Cell c : targetAreaCells) {
                     ContainerGrid.Cell mapped = cellMap.get(c);
-                    if (mapped != null) AreaCells.add(mapped);
+                    if (mapped != null) areaCells.add(mapped);
                 }
 
-                if (AreaCells.isEmpty()) return;
-                else if (AreaCells.size() == 1) {
-                    needReplaceSlot = AreaCells.toArray(new ContainerGrid.Cell[]{})[0].slot();
+                if (areaCells.isEmpty()) return;
+                else if (areaCells.size() == 1) {
+                    needReplaceSlot = areaCells.iterator().next().slot();
+                } else {
+                    cir.setReturnValue(true);
                 }
-                else cir.setReturnValue(true);
+            } else {
+                cir.setReturnValue(true);
             }
-            else cir.setReturnValue(true);
+        }
+
+        /* ---------- 原有左键“替换/交换”逻辑 ---------- */
+        if (cursorItem != null && ClientUtils.isClientGridSlot(slot)
+                && needReplaceSlot == null) {
+
+            ContainerGrid grid = ClientUtils.getContainerGrid();
+            if (grid.getCell(slot) == null) return;
+
+            var cellMap = grid.getCellMap();
+            ContainerGrid.Cell clickedCell = grid.getCell(slot);
+
+            Area targetArea = Area.of(cursorItem);
+            Set<ContainerGrid.Cell> targetAreaCells = new HashSet<>();
+            for (ContainerGrid.Cell cell : grid.getCells(clickedCell, targetArea)) {
+                if (cell.slot().container.equals(clickedCell.slot().container)) {
+                    targetAreaCells.add(cell);
+                }
+            }
+
+            if (targetAreaCells.size() == targetArea.width() * targetArea.height()) {
+                /* 0. 同种物品提前拦截：只要区域里出现同种物品就禁止左键放置 */
+                boolean anySameItem = targetAreaCells.stream()
+                        .map(c -> c.slot().getItem())
+                        .anyMatch(s -> !s.isEmpty() && ItemStack.isSameItemSameTags(s, cursorItem));
+                if (anySameItem) {
+                    cir.setReturnValue(true);
+                    return;
+                }
+
+                Set<ContainerGrid.Cell> areaCells = new HashSet<>();
+                for (ContainerGrid.Cell c : targetAreaCells) {
+                    ContainerGrid.Cell mapped = cellMap.get(c);
+                    if (mapped != null) areaCells.add(mapped);
+                }
+
+                if (areaCells.isEmpty()) return;
+                else if (areaCells.size() == 1) {
+                    needReplaceSlot = areaCells.iterator().next().slot();
+                } else {
+                    cir.setReturnValue(true);
+                }
+            } else {
+                cir.setReturnValue(true);
+            }
         }
     }
 
@@ -177,7 +365,7 @@ public abstract class AbstractContainerScreenMixin extends Screen {
     @Inject(method = "renderFloatingItem", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;renderItem(Lnet/minecraft/world/item/ItemStack;II)V"))
     private void scale(GuiGraphics guiGraphics, ItemStack itemStack, int x, int y, String p_282568_, CallbackInfo ci) {
         if (!ClientUtils.isClientGridSlot(hoveredSlot)) return;
-        scale(guiGraphics, Area.of(itemStack), x, y);
+        scale(guiGraphics, getRotatedArea(itemStack), x, y);
     }
 
     private void scale(GuiGraphics guiGraphics, Area area, int x, int y) {
@@ -211,6 +399,11 @@ public abstract class AbstractContainerScreenMixin extends Screen {
         if (!cursorItem.isEmpty() && Area.of(cursorItem).maxSize() > 1 && ClientUtils.isClientGridSlot(hoveredSlot)) {
             GLFW.glfwSetInputMode(windowHandle, GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_HIDDEN);
         } else GLFW.glfwSetInputMode(windowHandle, GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL);
+    }
+
+    @Unique
+    private Area getRotatedArea(ItemStack stack) {
+        return Area.of(stack); // ✅ 这里已经内部读取了 NBT 旋转状态
     }
 
     @Inject(method = "checkHotbarKeyPressed", at = @At("HEAD"), cancellable = true)

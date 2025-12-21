@@ -127,21 +127,42 @@ public class SlotUtils {
     }
 
     public static boolean hasEmptyHotbarSlot(Player player) {
-        // 获取玩家的库存
         var inventory = player.getInventory();
-
-        // 遍历快捷栏槽位（索引0到8）
         for (int slot = 0; slot < 9; slot++) {
-            // 获取槽位中的ItemStack
             ItemStack itemStack = inventory.getItem(slot);
-
-            // 检查ItemStack是否为空（包括空气物品）
             if (itemStack.isEmpty()) {
-                return true; // 找到空槽，直接返回true
+                return true;
             }
         }
-
-        // 所有槽位都有物品，返回false
         return false;
+    }
+
+    /**
+     * 专门为快捷栏查找空位（0-8号槽位）
+     * @return 空槽位索引，若无返回-1
+     */
+    public static int findEmptyHotbarSlot(Player player) {
+        var inventory = player.getInventory();
+        for (int slot = 0; slot < 9; slot++) {
+            if (inventory.getItem(slot).isEmpty()) {
+                return slot;
+            }
+        }
+        return -1;
+    }
+
+    /** 仅用于主背包 27 槽（索引 9~35）的网格 */
+    public static ContainerGrid createMainInventoryGrid(Inventory inv) {
+        List<Slot> slots = new ArrayList<>(27);
+        int baseY = 84, baseX = 8, spacing = 18;
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 9; col++) {
+                int idx = 9 + col + row * 9;
+                int x = baseX + col * spacing;
+                int y = baseY + row * spacing;
+                slots.add(new Slot(inv, idx, x, y));
+            }
+        }
+        return ContainerGrid.parse(slots);
     }
 }

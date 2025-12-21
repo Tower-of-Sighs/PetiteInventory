@@ -23,6 +23,8 @@ public class ItemUtils {
     private static final TagKey<net.minecraft.world.item.Item> SWORDS_TAG =
             ItemTags.create(new ResourceLocation("forge", "swords"));
 
+    private static final String TAG = "PetiteRotated";
+
     /**
      * 检查ItemStack是否为工具或武器
      * @param stack 待检查的物品堆栈
@@ -48,6 +50,27 @@ public class ItemUtils {
         }
 
         return false;
+    }
+
+    public static class ItemRotateHelper {
+        private static final String TAG = "PetiteRotated";
+
+        /** 写：客户端用 */
+        public static void setRotated(ItemStack stack, boolean rotated) {
+            if (rotated) {
+                stack.getOrCreateTag().putBoolean(TAG, true);
+            } else {
+                if (stack.hasTag()) {
+                    stack.getTag().remove(TAG);
+                    if (stack.getTag().isEmpty()) stack.setTag(null);
+                }
+            }
+        }
+
+        /** 读：两端都用 */
+        public static boolean isRotated(ItemStack stack) {
+            return stack.hasTag() && stack.getTag().getBoolean(TAG);
+        }
     }
 
     public static String getItemRegistryName(Item item) {
@@ -147,16 +170,68 @@ public class ItemUtils {
     }
 
     public static Area getArea(ItemStack itemStack) {
-        int width = 1, height = 1;
-        String sizeString = EntryCache.matchItem(getItemRegistryName(itemStack.getItem()));
-        if (sizeString != null) {
-            String[] size = sizeString.replace(" ", "").split("\\*");
-            width = Integer.parseInt(size[0]);
-            height = Integer.parseInt(size[1]);
+        // 1. 首先检查NBT精确匹配（最高优先级）
+        String itemId = getItemRegistryName(itemStack.getItem());
+        if (itemId != null && !itemStack.isEmpty()) {
+            // 生成NBT键格式，检查是否为NBT物品
+            String nbtKey = getNBTKey(itemId, itemStack);
+            if (nbtKey != null) {
+                String nbtSize = EntryCache.NBTMapCache.get(nbtKey);
+                if (nbtSize != null) {
+                    // 解析尺寸并应用旋转
+                    String[] size = nbtSize.replace(" ", "").split("\\*");
+                    int width = Integer.parseInt(size[0]);
+                    int height = Integer.parseInt(size[1]);
+
+                    boolean rotated = ItemRotateHelper.isRotated(itemStack);
+                    if (rotated) {
+                        int tmp = width;
+                        width = height;
+                        height = tmp;
+                    }
+
+                    return new Area(width, height, itemStack);
+                }
+            }
         }
-        AreaEvent event = new AreaEvent(width, height, itemStack);
-        MinecraftForge.EVENT_BUS.post(event);
-        AreaEvent _event = KubeJSCompat.area(event);
-        return new Area(_event.width, _event.height, _event.itemStack);
+
+        // 2. 尝试普通ID匹配
+        String normalSize = EntryCache.matchItem(itemId);
+        if (normalSize != null) {
+            String[] size = normalSize.replace(" ", "").split("\\*");
+            int width = Integer.parseInt(size[0]);
+            int height = Integer.parseInt(size[1]);
+
+            boolean rotated = ItemRotateHelper.isRotated(itemStack);
+            if (rotated) {
+                int tmp = width;
+                width = height;
+                height = tmp;
+            }
+
+            return new Area(width, height, itemStack);
+        }
+
+        // 3. 默认1×1
+        return new Area(1, 1, itemStack);
+    }
+
+    /**
+     * 从ItemStack生成NBT精确匹配键
+     */
+    private static String getNBTKey(String itemId, ItemStack stack) {
+        if (!stack.hasTag()) return null;
+
+        // TACZ枪械支持
+        if (itemId.equals("tacz:modern_kinetic_gun") && stack.getTag().contains("GunId")) {
+            String gunId = stack.getTag().getString("GunId");
+            if (gunId != null && !gunId.isEmpty()) {
+                return itemId + "{GunId:\"" + gunId + "\"}";
+            }
+        }
+
+        // 可以扩展其他模组的NBT匹配规则
+
+        return null;
     }
 }

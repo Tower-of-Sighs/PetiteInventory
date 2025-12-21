@@ -21,8 +21,18 @@ public class ModKeybindings {
             "key.categories.petiteinventory"
     );
 
+    public static final KeyMapping ROTATE = new KeyMapping(
+            "key.petiteinventory.rotate",
+            KeyConflictContext.GUI,        // 只在 GUI 里响应
+            KeyModifier.NONE,
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_R,               // ← 这里就是 R
+            "key.categories.petiteinventory"
+    );
+
     @SubscribeEvent
     public static void registerKeyMapping(RegisterKeyMappingsEvent event) {
         event.register(KEY);
+        event.register(ROTATE);
     }
 }

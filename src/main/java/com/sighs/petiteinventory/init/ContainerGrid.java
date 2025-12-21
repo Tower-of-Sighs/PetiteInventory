@@ -148,7 +148,7 @@ public class ContainerGrid {
         Map<Cell, Cell> result = new HashMap<>();
         for (Cell cell : cells) {
             if (!cell.isEmpty()) {
-                Area area = Area.of(cell.slot.getItem());
+                Area area = Area.of(cell.slot.getItem());   // 保持原样，但调用者已保证 NBT 是最新的
                 for (int x = 0; x < area.width(); x++) for (int y = 0; y < area.height(); y++) {
                     result.put(getCell(cell.x + x, cell.y + y), cell);
                 }

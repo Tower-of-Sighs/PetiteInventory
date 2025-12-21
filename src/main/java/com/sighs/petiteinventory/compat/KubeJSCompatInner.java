@@ -12,6 +12,6 @@ public class KubeJSCompatInner {
             Events.CLIENT_EVENT.post(eventJS);
         }
         Events.SERVER_EVENT.post(eventJS);
-        return new AreaEvent(eventJS.width, event.height, event.itemStack);
+        return new AreaEvent(eventJS.width, eventJS.height, event.itemStack);
     }
 }
