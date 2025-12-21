@@ -1,8 +1,8 @@
-## Petite Inventory
+# Petite Inventory
 
 Provides a **Resident Evil 4 / Diablo–style inventory layout**, where a single item can occupy multiple slots, and adjusts the corresponding replacement and transfer operations.
 
-### Features
+## Features
 
 On first launch, a default rule file is generated at:
 `config/PetiteInventory/default.json`
@@ -25,7 +25,7 @@ Additionally, containers using the new layout benefit from several operation opt
 * When using **Shift + Right Click** for quick transfer, if the items cannot stack, the system intelligently finds an available blank area to place them.
 * The hotbar is **never affected** by the new layout—otherwise, the experience would be unbearable.
 
-### Notes
+## Notes
 
 * Due to the nature of this mod, some compatibility issues with other mods (e.g., container sorting, slot expansion) are inevitable.
 * There can never be a perfectly ideal compatibility solution with auto-sorting mods—not only because of technical conflicts, but also because manual organization is one of this mod’s core design philosophies.
@@ -33,7 +33,7 @@ Additionally, containers using the new layout benefit from several operation opt
 * If you encounter functional issues with important containers from other mods, please leave feedback.
 * Works better with **Item Borders**.
 
-### Roadmap
+## Roadmap
 
 * Port to additional Minecraft versions.
 * Compatibility with major container mods such as Sophisticated Backpacks.
