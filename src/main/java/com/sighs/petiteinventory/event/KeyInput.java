@@ -28,8 +28,7 @@ public class KeyInput {
 
         int key = event.getKeyCode();
 
-        /* --------------- 原来能工作的 U --------------- */
-        if (key == ModKeybindings.KEY.getKey().getValue()) {   // U
+        if (key == ModKeybindings.KEY.getKey().getValue()) {
             if (screen.hoveredSlot == null) return;
             String menuType = screen.getMenu().getClass().toString();
             SystemToast.add(
@@ -39,18 +38,14 @@ public class KeyInput {
                     Component.translatable("toast.petiteinventory.copied.detail")
             );
             Minecraft.getInstance().keyboardHandler.setClipboard(menuType);
-            return;                       // 注意 return，别走到下面
         }
 
-        /* --------------- 直接复用同一段事件 --------------- */
-
-        /* ---------------  R 键旋转 --------------- */
-        if (key == GLFW.GLFW_KEY_R) {
+        if (key == ModKeybindings.ROTATE.getKey().getValue()) {
             long now = System.currentTimeMillis();
             if (now - lastR < 150) return;
             lastR = now;
 
-            ItemStack carried = Minecraft.getInstance().player.containerMenu.getCarried();
+            ItemStack carried = screen.getMenu().getCarried();
             if (carried.isEmpty()) return;
 
             boolean nowRot = !ItemUtils.ItemRotateHelper.isRotated(carried);

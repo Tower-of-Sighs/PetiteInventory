@@ -3,5 +3,6 @@
   "toast.petiteinventory.copied.detail": "请粘贴到配置文件中",
 
   "key.categories.petiteinventory": "娇小物品栏",
-  "key.petiteinventory.copy_container_class": "复制容器标识"
+  "key.petiteinventory.copy_container_class": "复制容器标识",
+  "key.petiteinventory.rotate": "旋转"
 }

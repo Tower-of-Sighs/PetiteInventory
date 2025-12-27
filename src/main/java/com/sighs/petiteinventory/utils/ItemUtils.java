@@ -53,7 +53,7 @@ public class ItemUtils {
     }
 
     public static class ItemRotateHelper {
-        private static final String TAG = "PetiteRotated";
+        public static final String TAG = "PetiteRotated";
 
         /** 写：客户端用 */
         public static void setRotated(ItemStack stack, boolean rotated) {

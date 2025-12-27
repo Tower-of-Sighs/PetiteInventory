@@ -3,5 +3,6 @@
   "toast.petiteinventory.copied.detail": "Just paste it to config.",
 
   "key.categories.petiteinventory": "Petite Inventory",
-  "key.petiteinventory.copy_container_class": "Copy class of Screen"
+  "key.petiteinventory.copy_container_class": "Copy class of Screen",
+  "key.petiteinventory.rotate": "Rotate"
 }
