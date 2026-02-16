@@ -52,6 +52,24 @@ public class ItemUtils {
         return false;
     }
 
+    /**
+     * 比较两个ItemStack是否相同（忽略旋转标记）
+     */
+    public static boolean isSameItemIgnoreRotate(ItemStack stack1, ItemStack stack2) {
+        if (stack1 == stack2) return true;
+        if (stack1.isEmpty() || stack2.isEmpty()) return false;
+        if (stack1.getItem() != stack2.getItem()) return false;
+
+        // 复制物品栈并移除旋转标记后比较
+        ItemStack copy1 = stack1.copy();
+        ItemStack copy2 = stack2.copy();
+
+        ItemRotateHelper.setRotated(copy1, false);
+        ItemRotateHelper.setRotated(copy2, false);
+
+        return ItemStack.isSameItemSameTags(copy1, copy2);
+    }
+
     public static class ItemRotateHelper {
         public static final String TAG = "PetiteRotated";
 

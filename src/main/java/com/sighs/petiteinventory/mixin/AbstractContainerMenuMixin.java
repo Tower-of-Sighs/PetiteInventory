@@ -94,7 +94,16 @@ public abstract class AbstractContainerMenuMixin implements IAbstractContainerMe
             }
         }
 
-        // ========== 2. 处理快捷栏移动：清除NBT，强制1×1 ==========
+        // ========== 2. 优先尝试堆叠到现有物品（忽略旋转标记） ==========
+        if (tryStackToExisting(clickedItem, targetSlots)) {
+            if (clickedItem.isEmpty()) {
+                clickedSlot.set(ItemStack.EMPTY);
+            }
+            ci.cancel();
+            return;
+        }
+
+        // ========== 3. 处理快捷栏移动：清除NBT，强制1×1 ==========
         if (toHotbar) {
             // 清除旋转状态，使其变为普通1×1物品
             ItemUtils.ItemRotateHelper.setRotated(clickedItem, false);
@@ -106,12 +115,12 @@ public abstract class AbstractContainerMenuMixin implements IAbstractContainerMe
             return;
         }
 
-        // ========== 3. 非快捷栏移动：保持多尺寸逻辑 ==========
+        // ========== 4. 非快捷栏移动：保持多尺寸逻辑 ==========
         Area area = Area.of(clickedItem);
         int start = targetSlots.get(0).index;
         int end = targetSlots.get(targetSlots.size() - 1).index;
 
-        // 1×1可堆叠物品优先合并
+        // 1×1可堆叠物品优先合并（前面已经尝试过堆叠，这里主要是处理多尺寸物品）
         if (clickedItem.isStackable() && area.width() == 1 && area.height() == 1) {
             if (tryMoveStackableItem(clickedItem, start, end, false)) {
                 ci.cancel();
@@ -143,6 +152,45 @@ public abstract class AbstractContainerMenuMixin implements IAbstractContainerMe
     }
 
     /**
+     * 尝试将物品堆叠到目标区域中的现有物品上（忽略旋转标记）
+     */
+    @Unique
+    private boolean tryStackToExisting(ItemStack stack, List<Slot> targetSlots) {
+        if (stack.isEmpty() || !stack.isStackable()) return false;
+
+        boolean stacked = false;
+        ItemStack workingStack = stack.copy();
+
+        // 遍历所有目标槽位，尝试堆叠
+        for (Slot slot : targetSlots) {
+            ItemStack slotItem = slot.getItem();
+            if (slotItem.isEmpty()) continue;
+
+            if (ItemUtils.isSameItemIgnoreRotate(slotItem, workingStack)) {
+                int max = Math.min(slot.getMaxStackSize(), workingStack.getMaxStackSize());
+                int add = Math.min(workingStack.getCount(), max - slotItem.getCount());
+
+                if (add > 0) {
+                    slotItem.grow(add);
+                    workingStack.shrink(add);
+                    stacked = true;
+
+                    if (workingStack.isEmpty()) {
+                        stack.setCount(0);
+                        return true;
+                    }
+                }
+            }
+        }
+
+        if (stacked) {
+            stack.setCount(workingStack.getCount());
+        }
+
+        return stacked;
+    }
+
+    /**
      * 尝试将可堆叠物品移动到指定范围内的槽位中
      * 只处理堆叠逻辑，不处理空槽位
      *
@@ -168,8 +216,8 @@ public abstract class AbstractContainerMenuMixin implements IAbstractContainerMe
             Slot slot = this.slots.get(currentIndex);
             ItemStack slotItem = slot.getItem();
 
-            // 检查槽位中是否有相同物品可以堆叠
-            if (!slotItem.isEmpty() && ItemStack.isSameItemSameTags(stackToMove, slotItem)) {
+            // 检查槽位中是否有相同物品可以堆叠（忽略旋转标记）
+            if (!slotItem.isEmpty() && ItemUtils.isSameItemIgnoreRotate(stackToMove, slotItem)) {
                 moved = tryStackItems(stackToMove, slotItem, slot) || moved;
             }
 
@@ -210,8 +258,6 @@ public abstract class AbstractContainerMenuMixin implements IAbstractContainerMe
         return false; // 无法堆叠
     }
 
-    // 添加到 AbstractContainerMenuMixin.java 中
-
     @Inject(method = "removed", at = @At("HEAD"), cancellable = true)
     private void handleMultiSizeItemOnClose(Player player, CallbackInfo ci) {
         if (player.level().isClientSide) return;
@@ -223,20 +269,17 @@ public abstract class AbstractContainerMenuMixin implements IAbstractContainerMe
 
         Inventory inv = player.getInventory();
 
-        // ✅ 关键修复1：只计算一次面积，后续都用这个，避免动态变化
         Area originalArea = Area.of(carried);
         boolean isOneByOne = originalArea.width() == 1 && originalArea.height() == 1;
 
-        // ✅ 关键修复2：创建一个干净的工作副本，不影响原始物品
         ItemStack workingStack = carried.copy();
 
-        /* ===== 1. 全局叠加（快捷栏优先，然后主背包）===== */
-        // ✅ 修复3：只有1x1物品才尝试堆叠，多尺寸物品跳过此步
+        /* ===== 1. 全局叠加（快捷栏优先，然后主背包，忽略旋转标记）===== */
         if (isOneByOne) {
             // 尝试快捷栏堆叠
             for (int hotbar = 0; hotbar < 9; hotbar++) {
                 ItemStack slot = inv.getItem(hotbar);
-                if (ItemStack.isSameItemSameTags(slot, workingStack)) {
+                if (!slot.isEmpty() && ItemUtils.isSameItemIgnoreRotate(slot, workingStack)) {
                     int max = Math.min(slot.getMaxStackSize(), inv.getMaxStackSize());
                     int add = Math.min(workingStack.getCount(), max - slot.getCount());
                     if (add > 0) {
@@ -250,7 +293,7 @@ public abstract class AbstractContainerMenuMixin implements IAbstractContainerMe
             // 尝试主背包堆叠
             for (int i = 9; i < 36; i++) {
                 ItemStack slot = inv.getItem(i);
-                if (ItemStack.isSameItemSameTags(slot, workingStack)) {
+                if (!slot.isEmpty() && ItemUtils.isSameItemIgnoreRotate(slot, workingStack)) {
                     int max = Math.min(slot.getMaxStackSize(), inv.getMaxStackSize());
                     int add = Math.min(workingStack.getCount(), max - slot.getCount());
                     if (add > 0) {
@@ -264,7 +307,6 @@ public abstract class AbstractContainerMenuMixin implements IAbstractContainerMe
 
         /* ===== 2. 仍有剩余，找空位 ===== */
         if (!workingStack.isEmpty()) {
-            // ✅ 修复4：只有1x1物品才使用简单空位查找
             if (isOneByOne) {
                 // 1x1物品：主背包空位 → 快捷栏空位
                 for (int i = 9; i < 36; i++) {
@@ -280,7 +322,6 @@ public abstract class AbstractContainerMenuMixin implements IAbstractContainerMe
                     }
                 }
             } else {
-                // ✅ 修复5：多尺寸物品使用保持原始旋转状态的workingStack
                 List<Slot> mainSlots = new ArrayList<>();
                 int baseY = 84, baseX = 8, spacing = 18;
                 for (int row = 0; row < 3; row++) {
@@ -293,7 +334,6 @@ public abstract class AbstractContainerMenuMixin implements IAbstractContainerMe
                 }
                 ContainerGrid grid = ContainerGrid.parse(mainSlots);
 
-                // 原始方向找空位
                 ContainerGrid.Cell cell = grid.findArea(originalArea);
                 if (cell != null) {
                     int idx = 9 + cell.x() + cell.y() * 9;
@@ -301,7 +341,6 @@ public abstract class AbstractContainerMenuMixin implements IAbstractContainerMe
                     return;
                 }
 
-                // ✅ 修复6：旋转一次再试（旋转workingStack，不影响原始物品）
                 boolean wasRot = ItemUtils.ItemRotateHelper.isRotated(workingStack);
                 ItemUtils.ItemRotateHelper.setRotated(workingStack, !wasRot);
                 Area rotatedArea = Area.of(workingStack);
@@ -312,7 +351,6 @@ public abstract class AbstractContainerMenuMixin implements IAbstractContainerMe
                     return;
                 }
 
-                // ✅ 修复7：旋转后也放不下，尝试强制1x1放入快捷栏
                 ItemStack copyForHotbar = workingStack.copy();
                 ItemUtils.ItemRotateHelper.setRotated(copyForHotbar, false);
                 for (int hotbar = 0; hotbar < 9; hotbar++) {
@@ -330,6 +368,6 @@ public abstract class AbstractContainerMenuMixin implements IAbstractContainerMe
 
     @Unique
     private Area getRotatedAreaServer(ItemStack stack) {
-        return Area.of(stack); // ✅ 同样读取 NBT 旋转状态
+        return Area.of(stack);
     }
 }
