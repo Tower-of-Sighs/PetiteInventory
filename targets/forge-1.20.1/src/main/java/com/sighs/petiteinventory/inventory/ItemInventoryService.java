@@ -1,18 +1,13 @@
 package com.sighs.petiteinventory.inventory;
 
-import com.sighs.petiteinventory.compat.KubeJSCompat;
-import com.sighs.petiteinventory.inventory.Area;
-import com.sighs.petiteinventory.inventory.AreaEvent;
 import com.sighs.petiteinventory.config.ItemSizeRuleCache;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.tags.ITagManager;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -20,50 +15,27 @@ import java.util.stream.Collectors;
 public class ItemInventoryService {
     private static final TagKey<Item> TOOLS_TAG =
             ItemTags.create(new ResourceLocation("forge", "tools"));
-    private static final TagKey<net.minecraft.world.item.Item> SWORDS_TAG =
+    private static final TagKey<Item> SWORDS_TAG =
             ItemTags.create(new ResourceLocation("forge", "swords"));
 
     private static final String TAG = "PetiteRotated";
 
-    /**
-     * 检查ItemStack是否为工具或武器
-     * @param stack 待检查的物品堆栈
-     * @return 如果是工具或武器返回true，否则返回false
-     */
     public static boolean isToolOrWeapon(ItemStack stack) {
         if (stack.isEmpty()) return false;
 
-        if (stack.is(ItemTags.TOOLS)) {
-            return true;
-        }
-
-        if (stack.is(ItemTags.SWORDS)) {
-            return true;
-        }
-
-        if (stack.is(TOOLS_TAG)) {
-            return true;
-        }
-
-        if (stack.is(SWORDS_TAG)) {
-            return true;
-        }
-
-        return false;
+        if (stack.is(ItemTags.TOOLS)) return true;
+        if (stack.is(ItemTags.SWORDS)) return true;
+        if (stack.is(TOOLS_TAG)) return true;
+        return stack.is(SWORDS_TAG);
     }
 
-    /**
-     * 比较两个ItemStack是否相同（忽略旋转标记）
-     */
     public static boolean isSameItemIgnoreRotate(ItemStack stack1, ItemStack stack2) {
         if (stack1 == stack2) return true;
         if (stack1.isEmpty() || stack2.isEmpty()) return false;
         if (stack1.getItem() != stack2.getItem()) return false;
 
-        // 复制物品栈并移除旋转标记后比较
         ItemStack copy1 = stack1.copy();
         ItemStack copy2 = stack2.copy();
-
         ItemRotateHelper.setRotated(copy1, false);
         ItemRotateHelper.setRotated(copy2, false);
 
@@ -73,52 +45,34 @@ public class ItemInventoryService {
     public static class ItemRotateHelper {
         public static final String TAG = "PetiteRotated";
 
-        /** 写：客户端用 */
         public static void setRotated(ItemStack stack, boolean rotated) {
             if (rotated) {
                 stack.getOrCreateTag().putBoolean(TAG, true);
-            } else {
-                if (stack.hasTag()) {
-                    stack.getTag().remove(TAG);
-                    if (stack.getTag().isEmpty()) stack.setTag(null);
-                }
+            } else if (stack.hasTag()) {
+                stack.getTag().remove(TAG);
+                if (stack.getTag().isEmpty()) stack.setTag(null);
             }
         }
 
-        /** 读：两端都用 */
         public static boolean isRotated(ItemStack stack) {
             return stack.hasTag() && stack.getTag().getBoolean(TAG);
         }
     }
 
     public static String getItemRegistryName(Item item) {
-        if (item == null) {
-            return null;
-        }
+        if (item == null) return null;
 
         ResourceLocation registryName = ForgeRegistries.ITEMS.getKey(item);
-        if (registryName == null) {
-            return null;
-        }
-
-        return registryName.toString();
+        return registryName == null ? null : registryName.toString();
     }
 
     public static Item getItemById(String registryName) {
-        if (registryName == null || registryName.isEmpty()) {
-            return null;
-        }
+        if (registryName == null || registryName.isEmpty()) return null;
 
         try {
             ResourceLocation resourceLocation = new ResourceLocation(registryName);
-
-            if (!ForgeRegistries.ITEMS.containsKey(resourceLocation)) {
-                return null;
-            }
-
-            Item item = ForgeRegistries.ITEMS.getValue(resourceLocation);
-
-            return item;
+            if (!ForgeRegistries.ITEMS.containsKey(resourceLocation)) return null;
+            return ForgeRegistries.ITEMS.getValue(resourceLocation);
         } catch (Exception e) {
             return null;
         }
@@ -152,34 +106,25 @@ public class ItemInventoryService {
                 try {
                     ResourceLocation tagId = new ResourceLocation(tagIdString);
                     Collection<Item> tagItems = getItemsOfTag(tagId);
-                    if (tagItems.isEmpty()) {
-                    } else {
-                        result.addAll(tagItems);
-                    }
-                } catch (Exception ignored) {}
+                    if (!tagItems.isEmpty()) result.addAll(tagItems);
+                } catch (Exception ignored) {
+                }
             } else {
                 Item item = getItemById(id);
-                if (item != null) {
-                    result.add(item);
-                }
+                if (item != null) result.add(item);
             }
         }
-
         return result;
     }
 
     public static List<ResourceLocation> getItemTags(Item item) {
         ITagManager<Item> tagManager = ForgeRegistries.ITEMS.tags();
-
-        if (tagManager == null) {
-            return Collections.emptyList();
-        }
+        if (tagManager == null) return Collections.emptyList();
 
         return tagManager.getReverseTag(item)
-                .map(reverseTag ->
-                        reverseTag.getTagKeys()
-                                .map(TagKey::location)
-                                .collect(Collectors.toList()))
+                .map(reverseTag -> reverseTag.getTagKeys()
+                        .map(TagKey::location)
+                        .collect(Collectors.toList()))
                 .orElse(Collections.emptyList());
     }
 
@@ -188,40 +133,20 @@ public class ItemInventoryService {
     }
 
     public static Area getArea(ItemStack itemStack) {
-        // 1. 首先检查NBT精确匹配（最高优先级）
-        String itemId = getItemRegistryName(itemStack.getItem());
-        if (itemId != null && !itemStack.isEmpty()) {
-            // 生成NBT键格式，检查是否为NBT物品
-            String nbtKey = getNBTKey(itemId, itemStack);
-            if (nbtKey != null) {
-                String nbtSize = ItemSizeRuleCache.NBTMapCache.get(nbtKey);
-                if (nbtSize != null) {
-                    // 解析尺寸并应用旋转
-                    String[] size = nbtSize.replace(" ", "").split("\\*");
-                    int width = Integer.parseInt(size[0]);
-                    int height = Integer.parseInt(size[1]);
-
-                    boolean rotated = ItemRotateHelper.isRotated(itemStack);
-                    if (rotated) {
-                        int tmp = width;
-                        width = height;
-                        height = tmp;
-                    }
-
-                    return new Area(width, height, itemStack);
-                }
-            }
+        if (itemStack == null || itemStack.isEmpty()) {
+            return new Area(1, 1, itemStack);
         }
 
-        // 2. 尝试普通ID匹配
-        String normalSize = ItemSizeRuleCache.matchItem(itemId);
-        if (normalSize != null) {
-            String[] size = normalSize.replace(" ", "").split("\\*");
+        String itemId = getItemRegistryName(itemStack.getItem());
+
+        // NBT exact match > normal ID > tag match.
+        String configuredSize = itemId == null ? null : ItemSizeRuleCache.matchItem(itemId, itemStack);
+        if (configuredSize != null) {
+            String[] size = configuredSize.replace(" ", "").split("\\*");
             int width = Integer.parseInt(size[0]);
             int height = Integer.parseInt(size[1]);
 
-            boolean rotated = ItemRotateHelper.isRotated(itemStack);
-            if (rotated) {
+            if (ItemRotateHelper.isRotated(itemStack)) {
                 int tmp = width;
                 width = height;
                 height = tmp;
@@ -230,26 +155,6 @@ public class ItemInventoryService {
             return new Area(width, height, itemStack);
         }
 
-        // 3. 默认1×1
         return new Area(1, 1, itemStack);
-    }
-
-    /**
-     * 从ItemStack生成NBT精确匹配键
-     */
-    private static String getNBTKey(String itemId, ItemStack stack) {
-        if (!stack.hasTag()) return null;
-
-        // TACZ枪械支持
-        if (itemId.equals("tacz:modern_kinetic_gun") && stack.getTag().contains("GunId")) {
-            String gunId = stack.getTag().getString("GunId");
-            if (gunId != null && !gunId.isEmpty()) {
-                return itemId + "{GunId:\"" + gunId + "\"}";
-            }
-        }
-
-        // 可以扩展其他模组的NBT匹配规则
-
-        return null;
     }
 }

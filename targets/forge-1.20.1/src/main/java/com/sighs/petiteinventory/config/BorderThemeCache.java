@@ -7,7 +7,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class BorderThemeCache {
@@ -20,56 +19,71 @@ public class BorderThemeCache {
         COLOR_MAP.putAll(BorderThemeFileStore.loadColors());
     }
 
-    /* 对外统一入口：无 ItemStack 时退化为仅按 Item 匹配 */
+    /* Entry point used when no ItemStack is available. */
     public static BorderTheme getTheme(Item item) {
         return getTheme(item, ItemStack.EMPTY);
     }
 
-    /* 核心实现：带 ItemStack 可读取 NBT 做精确匹配 */
+    /* Supports exact NBT matching for TaCZ weapons, magazines and attachments. */
     public static BorderTheme getTheme(Item item, ItemStack stack) {
         if (item == null) return BorderTheme.DEFAULT;
 
-        // 1. 精确 ID 匹配（含 NBT 片段 key）
-        String itemId = ForgeRegistries.ITEMS.getKey(item).toString();
-        BorderTheme theme = COLOR_MAP.get(itemId);
+        ResourceLocation registryId = ForgeRegistries.ITEMS.getKey(item);
+        if (registryId == null) return BorderTheme.DEFAULT;
 
-// 2. TACZ 枪械按 GunId 精确匹配（直接读根层级）
-        if (theme == null && itemId.equals("tacz:modern_kinetic_gun") && stack.hasTag()) {
-            String gunId = stack.getTag().getString("GunId");
-            if (gunId != null && !gunId.isEmpty()) {
-                // ✅ 修正：NBT键格式与命令生成器保持一致
-                String preciseKey = itemId + "{GunId:\"" + gunId + "\"}";
-                theme = COLOR_MAP.get(preciseKey);
-            }
-        }
+        String itemId = registryId.toString();
+
+        // 1. Exact NBT rule has priority.
+        String preciseKey = getNBTKey(itemId, stack);
+        BorderTheme theme = preciseKey == null ? null : COLOR_MAP.get(preciseKey);
         if (theme != null) return theme;
 
-        // 3. 标签匹配
-        ResourceLocation itemIdRL = ForgeRegistries.ITEMS.getKey(item);
-        if (itemIdRL != null) {
-            for (Map.Entry<String, BorderTheme> tagEntry : COLOR_MAP.entrySet()) {
-                if (tagEntry.getKey().startsWith("TAG:")) {
-                    String tagName = tagEntry.getKey().substring(4);
-                    ResourceLocation tagId = new ResourceLocation(tagName);
-                    if (ForgeRegistries.ITEMS.tags() != null &&
-                            ForgeRegistries.ITEMS.tags().getTag(
-                                    net.minecraft.tags.ItemTags.create(tagId)
-                            ).contains(item)) {
-                        TAG_CACHE.put(itemId, tagEntry.getValue());
-                        return tagEntry.getValue();
-                    }
-                }
+        // 2. Generic item ID rule.
+        theme = COLOR_MAP.get(itemId);
+        if (theme != null) return theme;
+
+        // 3. Tag rules.
+        for (Map.Entry<String, BorderTheme> tagEntry : COLOR_MAP.entrySet()) {
+            if (!tagEntry.getKey().startsWith("TAG:")) continue;
+
+            String tagName = tagEntry.getKey().substring(4);
+            ResourceLocation tagId = new ResourceLocation(tagName);
+            if (ForgeRegistries.ITEMS.tags() != null
+                    && ForgeRegistries.ITEMS.tags().getTag(
+                    net.minecraft.tags.ItemTags.create(tagId)
+            ).contains(item)) {
+                TAG_CACHE.put(itemId, tagEntry.getValue());
+                return tagEntry.getValue();
             }
         }
 
-        // 4. 缓存的标签匹配
+        // 4. Cached tag match.
         theme = TAG_CACHE.get(itemId);
-        if (theme != null) return theme;
-
-        return BorderTheme.DEFAULT;
+        return theme != null ? theme : BorderTheme.DEFAULT;
     }
 
-    /* 供指令调用：key 支持带 NBT 片段 */
+    private static String getNBTKey(String itemId, ItemStack stack) {
+        if (stack == null || stack.isEmpty() || !stack.hasTag()) return null;
+
+        var tag = stack.getTag();
+        String nbtField;
+
+        if (itemId.equals("taczmagazines:magazine") && tag.contains("MagazineFamily")) {
+            nbtField = "MagazineFamily";
+        } else if (itemId.equals("tacz:modern_kinetic_gun") && tag.contains("GunId")) {
+            nbtField = "GunId";
+        } else if (itemId.equals("tacz:attachment") && tag.contains("AttachmentId")) {
+            nbtField = "AttachmentId";
+        } else {
+            return null;
+        }
+
+        String value = tag.getString(nbtField);
+        if (value == null || value.isEmpty()) return null;
+
+        return itemId + "{" + nbtField + ":\"" + value + "\"}";
+    }
+
     public static void setTheme(String itemId, BorderTheme theme) {
         COLOR_MAP.put(itemId, theme);
         TAG_CACHE.remove(itemId);

@@ -17,6 +17,7 @@ public class ItemSizeRuleCache {
      */
     public static void putEntry(ItemSizeRule rule) {
         String result = rule.result;
+
         for (String match : rule.match) {
             if (match.startsWith("#")) {
                 TagMapCache.put(match.replace("#", ""), result);
@@ -97,16 +98,25 @@ public class ItemSizeRuleCache {
     private static String getNBTKey(String itemId, ItemStack stack) {
         if (!stack.hasTag()) return null;
 
-        // TACZ枪械支持
-        if (itemId.equals("tacz:modern_kinetic_gun") && stack.getTag().contains("GunId")) {
-            String gunId = stack.getTag().getString("GunId");
-            if (gunId != null && !gunId.isEmpty()) {
-                return itemId + "{GunId:\"" + gunId + "\"}";
-            }
+        var tag = stack.getTag();
+        String nbtField;
+
+        if (itemId.equals("taczmagazines:magazine") && tag.contains("MagazineFamily")) {
+            nbtField = "MagazineFamily";
+        } else if (itemId.equals("tacz:modern_kinetic_gun") && tag.contains("GunId")) {
+            nbtField = "GunId";
+        } else if (itemId.equals("tacz:attachment") && tag.contains("AttachmentId")) {
+            nbtField = "AttachmentId";
+        } else {
+            return null;
         }
 
-        // 可以扩展其他模组的NBT匹配规则
-        return null;
+        String value = tag.getString(nbtField);
+        if (value == null || value.isEmpty()) {
+            return null;
+        }
+
+        return itemId + "{" + nbtField + ":\"" + value + "\"}";
     }
 
     public static String matchTag(String tagId) {
@@ -143,9 +153,9 @@ public class ItemSizeRuleCache {
 
         // 合并所有缓存（NBT优先级最高，覆盖其他）
         Map<String, String> allItems = new HashMap<>();
-        allItems.putAll(TagMapCache);      // 标签配置
-        allItems.putAll(UnitMapCache);     // 普通物品
-        allItems.putAll(NBTMapCache);      // NBT物品（优先级最高）
+        allItems.putAll(TagMapCache); // 标签配置
+        allItems.putAll(UnitMapCache); // 普通物品
+        allItems.putAll(NBTMapCache); // NBT物品（优先级最高）
 
         // 按尺寸分组
         allItems.forEach((item, size) -> {
