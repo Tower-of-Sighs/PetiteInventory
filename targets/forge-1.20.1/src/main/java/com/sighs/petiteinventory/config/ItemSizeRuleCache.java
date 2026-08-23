@@ -1,6 +1,6 @@
 package com.sighs.petiteinventory.config;
 
-import com.sighs.petiteinventory.inventory.ItemInventoryService;
+import com.sighs.petiteinventory.platform.inventory.ItemInventoryService;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 

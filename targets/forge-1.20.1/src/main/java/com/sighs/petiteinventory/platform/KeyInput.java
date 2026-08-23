@@ -5,7 +5,7 @@ import com.sighs.petiteinventory.platform.NetworkChannel;
 import com.sighs.petiteinventory.platform.RotateAreaPayload;
 import com.sighs.petiteinventory.client.ModKeybindings;
 import com.sighs.petiteinventory.inventory.Area;
-import com.sighs.petiteinventory.inventory.ItemInventoryService;
+import com.sighs.petiteinventory.platform.inventory.ItemInventoryService;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;

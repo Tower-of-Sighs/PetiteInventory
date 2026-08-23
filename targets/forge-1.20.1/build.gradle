@@ -29,13 +29,29 @@ java {
 }
 
 dependencies {
-    implementation project(':common')
+    // Common classes are merged into this target's output below; keep the
+    // project dependency compile-only so ForgeGradle does not package a
+    // second copy of the common jar.
+    compileOnly project(':common')
 }
 
 sourceSets.main.output.dir(
         project(':common').layout.buildDirectory.dir('classes/java/main'),
         builtBy: ':common:classes'
 )
+
+// ForgeGradle's run configurations isolate the mod's exploded classes and do
+// not reliably include project dependency outputs in the transforming loader.
+// Mirror common classes into the mod output used by runClient/runServer.
+def copyCommonClasses = tasks.register('copyCommonClasses', Copy) {
+    dependsOn ':common:classes'
+    from project(':common').sourceSets.main.output.classesDirs
+    into layout.buildDirectory.dir('classes/java/main')
+}
+
+tasks.matching { it.name == 'runClient' || it.name == 'runServer' }.configureEach {
+    dependsOn copyCommonClasses
+}
 
 minecraft {
     accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
@@ -100,6 +116,11 @@ minecraft {
             mods {
                 "${mod_id}" {
                     source sourceSets.main
+                    // ForgeGradle's userdev launcher does not expose ordinary
+                    // project dependencies to Mixin's transformed classloader.
+                    // Treat common as part of this mod's source so SPI/event
+                    // classes are available during runClient as well as in the jar.
+                    source project(':common').sourceSets.main
                 }
             }
         }
@@ -233,6 +254,12 @@ tasks.named('processResources', ProcessResources).configure {
 
 // Example for how to get properties into the manifest for reading at runtime.
 tasks.named('jar', Jar).configure {
+    // runClient mirrors common classes into the target output for the
+    // transformed development classloader.  The common output directory is
+    // also attached to the source set, so the jar sees the same class twice;
+    // both copies are byte-for-byte identical and only one should be emitted.
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
     manifest {
         attributes(["Specification-Title"     : mod_id,
                     "Specification-Vendor"    : mod_authors,

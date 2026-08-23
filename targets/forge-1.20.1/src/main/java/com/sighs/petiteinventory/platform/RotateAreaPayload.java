@@ -1,6 +1,6 @@
 package com.sighs.petiteinventory.platform;
 
-import com.sighs.petiteinventory.inventory.ItemInventoryService;
+import com.sighs.petiteinventory.platform.inventory.ItemInventoryService;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
 import net.minecraft.resources.ResourceLocation;

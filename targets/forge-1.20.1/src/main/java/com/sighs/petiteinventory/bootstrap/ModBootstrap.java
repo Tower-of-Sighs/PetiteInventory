@@ -3,6 +3,8 @@ package com.sighs.petiteinventory.bootstrap;
 import com.sighs.petiteinventory.config.ModConfig;
 import com.sighs.petiteinventory.config.BorderThemeCache;
 import com.sighs.petiteinventory.platform.NetworkChannel;
+import com.sighs.petiteinventory.event.InventoryEvents;
+import com.sighs.petiteinventory.spi.PlatformServices;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.config.ModConfig.Type;
 
@@ -15,5 +17,6 @@ public final class ModBootstrap {
         ModLoadingContext.get().registerConfig(Type.COMMON, ModConfig.SPEC);
         NetworkChannel.register();
         BorderThemeCache.load();
+        PlatformServices.initialize(InventoryEvents.BUS);
     }
 }

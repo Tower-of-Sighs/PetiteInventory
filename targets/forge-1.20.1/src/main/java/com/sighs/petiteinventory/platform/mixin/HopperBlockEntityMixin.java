@@ -1,6 +1,6 @@
 package com.sighs.petiteinventory.platform.mixin;
 
-import com.sighs.petiteinventory.inventory.ContainerAutomationService;
+import com.sighs.petiteinventory.event.InventoryEvents;
 import net.minecraft.core.Direction;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
@@ -21,9 +21,10 @@ public abstract class HopperBlockEntityMixin {
                                                       int slot,
                                                       @Nullable Direction direction,
                                                       CallbackInfoReturnable<ItemStack> callback) {
-        ItemStack remainder = ContainerAutomationService.tryInsertFromHopper(target, incoming, direction);
-        if (remainder != null) {
-            callback.setReturnValue(remainder);
+        InventoryEvents.HopperInsert event = new InventoryEvents.HopperInsert(target, incoming, direction);
+        InventoryEvents.publish(event);
+        if (event.isHandled()) {
+            callback.setReturnValue((ItemStack) event.remainder());
         }
     }
 }

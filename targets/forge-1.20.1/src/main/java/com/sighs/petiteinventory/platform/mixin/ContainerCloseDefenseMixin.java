@@ -1,6 +1,6 @@
 package com.sighs.petiteinventory.platform.mixin;
 
-import com.sighs.petiteinventory.inventory.InventoryAdmissionService;
+import com.sighs.petiteinventory.event.InventoryEvents;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
@@ -25,7 +25,13 @@ public abstract class ContainerCloseDefenseMixin {
 
         ItemStack carried = getCarried();
         setCarried(ItemStack.EMPTY);
-        InventoryAdmissionService.returnCarriedItem(player, carried);
-        callback.cancel();
+        InventoryEvents.ContainerClose event = new InventoryEvents.ContainerClose(player, carried);
+        InventoryEvents.publish(event);
+        if (event.isHandled()) {
+            callback.cancel();
+        } else {
+            // No common subscriber was installed; restore vanilla's carried item path.
+            setCarried(carried);
+        }
     }
 }

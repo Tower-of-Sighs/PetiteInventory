@@ -1,8 +1,8 @@
 package com.sighs.petiteinventory.client;
 
 import com.sighs.petiteinventory.Petiteinventory;
-import com.sighs.petiteinventory.inventory.ContainerGrid;
-import com.sighs.petiteinventory.inventory.InventorySlotService;
+import com.sighs.petiteinventory.platform.inventory.ContainerGrid;
+import com.sighs.petiteinventory.platform.inventory.InventorySlotService;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;

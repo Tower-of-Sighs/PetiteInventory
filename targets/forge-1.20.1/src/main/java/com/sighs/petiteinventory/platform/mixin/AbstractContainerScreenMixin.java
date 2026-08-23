@@ -2,9 +2,12 @@ package com.sighs.petiteinventory.platform.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.sighs.petiteinventory.Petiteinventory;
+import com.sighs.petiteinventory.core.ItemSize;
+import com.sighs.petiteinventory.core.ResizeBounds;
+import com.sighs.petiteinventory.core.ResizeDirection;
 import com.sighs.petiteinventory.inventory.Area;
 import com.sighs.petiteinventory.inventory.BorderTheme;
-import com.sighs.petiteinventory.inventory.ContainerGrid;
+import com.sighs.petiteinventory.platform.inventory.ContainerGrid;
 import com.sighs.petiteinventory.config.BorderThemeCache;
 import com.sighs.petiteinventory.platform.NetworkChannel;
 import com.sighs.petiteinventory.platform.PlaceItemPayload;
@@ -12,7 +15,7 @@ import com.sighs.petiteinventory.client.ClientInventoryContext;
 import com.sighs.petiteinventory.client.ClientEditMode;
 import com.sighs.petiteinventory.client.InventoryRenderer;
 import com.sighs.petiteinventory.config.ItemSizeRuleCache;
-import com.sighs.petiteinventory.inventory.ItemInventoryService;
+import com.sighs.petiteinventory.platform.inventory.ItemInventoryService;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -497,13 +500,16 @@ public abstract class AbstractContainerScreenMixin extends Screen {
 
     @Unique
     private int[] resize(int width, int height, int direction, int dx, int dy) {
-        int resizedWidth = width;
-        int resizedHeight = height;
-        if (direction == 0 || direction == 2 || direction == 6) resizedWidth -= dx;
-        if (direction == 1 || direction == 3 || direction == 7) resizedWidth += dx;
-        if (direction == 0 || direction == 1 || direction == 4) resizedHeight -= dy;
-        if (direction == 2 || direction == 3 || direction == 5) resizedHeight += dy;
-        return new int[] { Math.max(1, Math.min(9, resizedWidth)), Math.max(1, Math.min(9, resizedHeight)) };
+        if (direction < 0 || direction > 7) return new int[] {width, height};
+        ResizeDirection[] directions = {
+                ResizeDirection.NORTH_WEST, ResizeDirection.NORTH_EAST,
+                ResizeDirection.SOUTH_WEST, ResizeDirection.SOUTH_EAST,
+                ResizeDirection.NORTH, ResizeDirection.SOUTH,
+                ResizeDirection.WEST, ResizeDirection.EAST
+        };
+        ItemSize resized = ResizeBounds.resize(new ItemSize(width, height),
+                directions[direction], dx, dy, 9);
+        return new int[] {resized.width(), resized.height()};
     }
 
     /**

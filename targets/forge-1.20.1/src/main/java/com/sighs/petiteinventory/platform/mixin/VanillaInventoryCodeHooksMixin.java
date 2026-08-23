@@ -1,6 +1,6 @@
 package com.sighs.petiteinventory.platform.mixin;
 
-import com.sighs.petiteinventory.inventory.ContainerAutomationService;
+import com.sighs.petiteinventory.event.InventoryEvents;
 import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraftforge.items.VanillaInventoryCodeHooks;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,9 +14,10 @@ public abstract class VanillaInventoryCodeHooksMixin {
     @Inject(method = "insertHook", at = @At("HEAD"), cancellable = true, remap = false)
     private static void petiteinventory$insertHook(HopperBlockEntity hopper,
                                                    CallbackInfoReturnable<Boolean> callback) {
-        Boolean handled = ContainerAutomationService.tryInsertFromForgeHook(hopper);
-        if (handled != null) {
-            callback.setReturnValue(handled);
+        InventoryEvents.HopperInsert event = new InventoryEvents.HopperInsert(hopper, null, null);
+        InventoryEvents.publish(event);
+        if (event.isHandled()) {
+            callback.setReturnValue((Boolean) event.remainder());
         }
     }
 }

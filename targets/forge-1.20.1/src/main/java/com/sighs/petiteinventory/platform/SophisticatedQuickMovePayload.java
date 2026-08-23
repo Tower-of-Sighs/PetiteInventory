@@ -2,7 +2,7 @@ package com.sighs.petiteinventory.platform;
 
 import com.sighs.petiteinventory.compat.SophisticatedBackpacksCompat;
 import com.sighs.petiteinventory.inventory.Area;
-import com.sighs.petiteinventory.inventory.ItemInventoryService;
+import com.sighs.petiteinventory.platform.inventory.ItemInventoryService;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;

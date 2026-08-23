@@ -26,7 +26,7 @@ public final class EditModeCommand {
             source.sendFailure(Component.literal("This command must be run by a player."));
             return 0;
         }
-        boolean enabled = EditModeService.toggle(player);
+        boolean enabled = EditModeService.toggle(player.getUUID());
         NetworkChannel.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new EditModePayload(enabled));
         source.sendSuccess(() -> Component.literal(enabled ? "Inventory edit mode enabled." : "Inventory edit mode disabled."), false);
         return 1;

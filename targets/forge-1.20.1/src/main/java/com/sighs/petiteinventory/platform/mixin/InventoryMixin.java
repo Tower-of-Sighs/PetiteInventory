@@ -1,7 +1,7 @@
 package com.sighs.petiteinventory.platform.mixin;
 
-import com.sighs.petiteinventory.inventory.InventoryAdmissionResult;
-import com.sighs.petiteinventory.inventory.InventoryAdmissionService;
+import com.sighs.petiteinventory.event.InventoryEvents;
+import com.sighs.petiteinventory.service.AdmissionResult;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -19,12 +19,11 @@ public abstract class InventoryMixin {
 
     @Inject(method = "add(Lnet/minecraft/world/item/ItemStack;)Z", at = @At("HEAD"), cancellable = true)
     private void interceptIncomingStack(ItemStack incoming, CallbackInfoReturnable<Boolean> callback) {
-        InventoryAdmissionResult result = InventoryAdmissionService.admit(player, incoming);
-        if (result == InventoryAdmissionResult.ACCEPTED) {
-            callback.setReturnValue(true);
-        } else if (result == InventoryAdmissionResult.REJECTED) {
-            callback.setReturnValue(false);
+        InventoryEvents.Admission event = new InventoryEvents.Admission(player, incoming);
+        InventoryEvents.publish(event);
+        if (event.isHandled()) {
+            callback.setReturnValue(event.result() != AdmissionResult.REJECTED);
         }
-        // DEFER_TO_VANILLA intentionally leaves the original method untouched.
+        // An unhandled event intentionally leaves the original method untouched.
     }
 }

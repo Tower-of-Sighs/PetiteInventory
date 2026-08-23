@@ -1,6 +1,6 @@
 package com.sighs.petiteinventory.api;
 
-import com.sighs.petiteinventory.inventory.ItemInventoryService;
+import com.sighs.petiteinventory.platform.inventory.ItemInventoryService;
 import net.minecraft.world.item.ItemStack;
 
 /** Supported integration boundary. Internal config, cache and platform types stay hidden. */
