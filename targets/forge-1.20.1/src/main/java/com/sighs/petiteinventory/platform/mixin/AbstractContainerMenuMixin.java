@@ -2,7 +2,6 @@ package com.sighs.petiteinventory.platform.mixin;
 
 import com.sighs.petiteinventory.compat.SophisticatedBackpacksCompat;
 import com.sighs.petiteinventory.platform.IAbstractContainerMenu;
-import com.sighs.petiteinventory.platform.IAbstractContainerMenu;
 import com.sighs.petiteinventory.inventory.Area;
 import com.sighs.petiteinventory.inventory.ContainerGrid;
 import com.sighs.petiteinventory.inventory.ItemInventoryService;
@@ -48,7 +47,7 @@ public abstract class AbstractContainerMenuMixin implements IAbstractContainerMe
 
     @Inject(method = "clicked", at = @At("HEAD"), cancellable = true)
     private void qq(int slot, int p_150401_, ClickType type, Player p_150403_, CallbackInfo ci) {
-        if (player.isCreative()) return;
+        if (p_150403_.isCreative()) return;
         if (slot < 0 || slot >= slots.size()) return;
         if (type != ClickType.QUICK_MOVE) return;
         if (SophisticatedBackpacksCompat.isBackpackMenu((AbstractContainerMenu) (Object) this)) return;
@@ -57,11 +56,19 @@ public abstract class AbstractContainerMenuMixin implements IAbstractContainerMe
         ItemStack clickedItem = clickedSlot.getItem();
         if (clickedItem.isEmpty()) return;
 
+        // Result slots (merchant, crafting, anvil, smithing, etc.) deliberately
+        // reject placement. Let vanilla handle them so their onTake hooks consume
+        // inputs and award the correct costs instead of duplicating the result.
+        if (!clickedSlot.mayPlace(clickedItem) || isResultLikeSlot(clickedSlot)) return;
+
+        ItemStack sourceBefore = clickedItem.copy();
+        int sourceCountBefore = clickedItem.getCount();
+
         // ========== 1. 精确判断移动方向 ==========
         boolean toHotbar = false;           // 是否最终进入快捷栏
         boolean withinInventory = false;    // 是否在背包内部移动
         List<Slot> targetSlots = new ArrayList<>();
-        ContainerGrid targetGrid = null;
+        List<List<Slot>> targetGroups = new ArrayList<>();
 
         if ((Object)this instanceof InventoryMenu) {
             // 背包内部：区分主背包(9-35) ↔ 快捷栏(0-8)
@@ -74,35 +81,51 @@ public abstract class AbstractContainerMenuMixin implements IAbstractContainerMe
                 for (int i = InventoryMenu.USE_ROW_SLOT_START; i < InventoryMenu.USE_ROW_SLOT_END; i++) {
                     targetSlots.add(this.slots.get(i));
                 }
+                targetGroups.add(targetSlots);
             } else {
                 withinInventory = true; // 快捷栏 → 主背包
                 for (int i = InventoryMenu.INV_SLOT_START; i < InventoryMenu.INV_SLOT_END; i++) {
                     targetSlots.add(this.slots.get(i));
                 }
-                targetGrid = ContainerGrid.parse(targetSlots);
+                targetGroups.add(targetSlots);
             }
         } else {
             // 容器 ↔ 背包
             if (clickedSlot.container instanceof Inventory) {
                 // 背包 → 容器
-                slots.forEach(s -> { if (!(s.container instanceof Inventory)) targetSlots.add(s); });
-                targetGrid = ContainerGrid.parse(targetSlots);
-            } else {
-                // 容器 → 背包（可能包含快捷栏）
-                slots.forEach(s -> { if (s.container instanceof Inventory) targetSlots.add(s); });
-                // 检测目标槽位是否包含快捷栏
                 slots.forEach(s -> {
-                    if (InventorySlotService.isPlayerMainInventorySlot(s)) targetSlots.add(s);
+                    if (!(s.container instanceof Inventory) && s.mayPlace(clickedItem)) targetSlots.add(s);
                 });
-                targetGrid = ContainerGrid.parse(targetSlots);
+                targetGroups.add(targetSlots);
+            } else {
+                // 容器 -> 玩家物品栏：快捷栏优先，主物品栏作为后备。
+                List<Slot> hotbarSlots = new ArrayList<>();
+                List<Slot> mainInventorySlots = new ArrayList<>();
+                slots.forEach(s -> {
+                    if (!s.mayPlace(clickedItem)) return;
+                    if (InventorySlotService.isPlayerHotbarSlot(s)) {
+                        hotbarSlots.add(s);
+                    } else if (InventorySlotService.isPlayerMainInventorySlot(s)) {
+                        mainInventorySlots.add(s);
+                    }
+                });
+                targetSlots.addAll(hotbarSlots);
+                targetSlots.addAll(mainInventorySlots);
+                targetGroups.add(hotbarSlots);
+                targetGroups.add(mainInventorySlots);
             }
         }
 
+        // Some mod menus expose a player inventory without any usable container
+        // slots. There is no valid custom transfer target in that case.
+        if (!toHotbar && targetGroups.stream().noneMatch(group -> !group.isEmpty())) return;
+
         // ========== 2. 优先尝试堆叠到现有物品（忽略旋转标记） ==========
-        if (tryStackToExisting(clickedItem, targetSlots)) {
+        if (tryStackToExisting(clickedItem, targetSlots) && clickedItem.isEmpty()) {
             if (clickedItem.isEmpty()) {
                 clickedSlot.set(ItemStack.EMPTY);
             }
+            notifyQuickMoveTaken(clickedSlot, p_150403_, sourceBefore, sourceCountBefore, clickedItem);
             ci.cancel();
             return;
         }
@@ -115,44 +138,66 @@ public abstract class AbstractContainerMenuMixin implements IAbstractContainerMe
             int start = targetSlots.get(0).index;
             int end = targetSlots.get(targetSlots.size() - 1).index;
             moveItemStackTo(clickedItem, start, end, false);
+            notifyQuickMoveTaken(clickedSlot, p_150403_, sourceBefore, sourceCountBefore, clickedItem);
             ci.cancel();
             return;
         }
 
         // ========== 4. 非快捷栏移动：保持多尺寸逻辑 ==========
         Area area = ItemInventoryService.getArea(clickedItem);
-        int start = targetSlots.get(0).index;
-        int end = targetSlots.get(targetSlots.size() - 1).index;
-
-        // 1×1可堆叠物品优先合并（前面已经尝试过堆叠，这里主要是处理多尺寸物品）
-        if (clickedItem.isStackable() && area.width() == 1 && area.height() == 1) {
-            if (tryMoveStackableItem(clickedItem, start, end, false)) {
-                ci.cancel();
-                return;
-            }
-        }
-
         // 多尺寸物品按区域查找
         if (!clickedItem.isEmpty()) {
-            ContainerGrid.Cell targetCell = targetGrid.findArea(area);
-            if (targetCell == null) {
+            Slot targetSlot = findAreaInPriorityGroups(targetGroups, area);
+            if (targetSlot == null) {
                 // 尝试旋转
                 boolean wasRotated = ItemInventoryService.ItemRotateHelper.isRotated(clickedItem);
                 ItemInventoryService.ItemRotateHelper.setRotated(clickedItem, !wasRotated);
                 Area rotatedArea = ItemInventoryService.getArea(clickedItem);
-                targetCell = targetGrid.findArea(rotatedArea);
-                if (targetCell == null) {
+                targetSlot = findAreaInPriorityGroups(targetGroups, rotatedArea);
+                if (targetSlot == null) {
                     ItemInventoryService.ItemRotateHelper.setRotated(clickedItem, wasRotated);
                 }
             }
 
-            if (targetCell != null) {
-                int idx = targetCell.slot().index;
+            if (targetSlot != null) {
+                int idx = targetSlot.index;
                 moveItemStackTo(clickedItem, idx, idx + 1, false);
             }
         }
 
+        notifyQuickMoveTaken(clickedSlot, p_150403_, sourceBefore, sourceCountBefore, clickedItem);
         ci.cancel();
+    }
+
+    @Unique
+    private boolean isResultLikeSlot(Slot slot) {
+        String name = slot.getClass().getName().toLowerCase(java.util.Locale.ROOT);
+        return name.endsWith("resultslot")
+                || name.endsWith("outputslot")
+                || name.contains("merchantresult")
+                || name.contains("traderesult");
+    }
+
+    @Unique
+    private void notifyQuickMoveTaken(Slot source, Player player, ItemStack original,
+                                      int originalCount, ItemStack remaining) {
+        int movedCount = originalCount - remaining.getCount();
+        if (movedCount <= 0) return;
+
+        ItemStack moved = original.copy();
+        moved.setCount(Math.min(movedCount, original.getMaxStackSize()));
+        source.onTake(player, moved);
+    }
+
+    @Unique
+    private Slot findAreaInPriorityGroups(List<List<Slot>> groups, Area area) {
+        for (List<Slot> group : groups) {
+            if (group.isEmpty()) continue;
+            ContainerGrid grid = ContainerGrid.parse(group);
+            ContainerGrid.Cell cell = grid.findArea(area);
+            if (cell != null) return cell.slot();
+        }
+        return null;
     }
 
     /**
@@ -177,6 +222,7 @@ public abstract class AbstractContainerMenuMixin implements IAbstractContainerMe
                 if (add > 0) {
                     slotItem.grow(add);
                     workingStack.shrink(add);
+                    slot.setChanged();
                     stacked = true;
 
                     if (workingStack.isEmpty()) {

@@ -118,9 +118,16 @@ public abstract class StorageContainerMenuBaseMixin {
 
     @Unique
     private int resolveStorageWidth(ContainerGrid grid, List<Slot> storageSlots) {
+        int rows = getNumberOfRows();
+        if (rows > 0 && storageSlots.size() % rows == 0) {
+            // The server-side menu can expose every storage slot at the same
+            // placeholder coordinate. Derive the logical width from its rows so
+            // 2/4/6/8-column storages use the same layout on both sides.
+            return Math.max(1, storageSlots.size() / rows);
+        }
+
         int visualWidth = grid.getWidth();
         if (visualWidth > 1) return visualWidth;
-        int rows = getNumberOfRows();
         return rows > 0 ? Math.max(1, (storageSlots.size() + rows - 1) / rows) : storageSlots.size();
     }
 
@@ -133,7 +140,14 @@ public abstract class StorageContainerMenuBaseMixin {
         ItemStack original = stack.copy();
         int firstPlayerSlot = 0;
         while (firstPlayerSlot < slots.size() && isStorageInventorySlot(firstPlayerSlot)) firstPlayerSlot++;
-        List<Slot> targets = new ArrayList<>(slots.subList(firstPlayerSlot, Math.min(firstPlayerSlot + 27, slots.size())));
+        List<Slot> mainInventorySlots = new ArrayList<>(slots.subList(
+                firstPlayerSlot, Math.min(firstPlayerSlot + 27, slots.size())));
+        int hotbarStart = Math.min(firstPlayerSlot + 27, slots.size());
+        List<Slot> hotbarSlots = new ArrayList<>(slots.subList(
+                hotbarStart, Math.min(hotbarStart + 9, slots.size())));
+        List<Slot> targets = new ArrayList<>(hotbarSlots.size() + mainInventorySlots.size());
+        targets.addAll(hotbarSlots);
+        targets.addAll(mainInventorySlots);
         if (targets.isEmpty()) {
             callback.setReturnValue(ItemStack.EMPTY);
             return;
@@ -159,12 +173,12 @@ public abstract class StorageContainerMenuBaseMixin {
 
         boolean wasRotated = ItemInventoryService.ItemRotateHelper.isRotated(stack);
         Area area = ItemInventoryService.getArea(stack);
-        Slot target = findMainInventoryAnchor(targets, area);
+        Slot target = findPlayerInventoryAnchor(hotbarSlots, mainInventorySlots, area);
         if (target == null) {
             boolean rotated = ItemInventoryService.ItemRotateHelper.isRotated(stack);
             ItemInventoryService.ItemRotateHelper.setRotated(stack, !rotated);
             area = ItemInventoryService.getArea(stack);
-            target = findMainInventoryAnchor(targets, area);
+            target = findPlayerInventoryAnchor(hotbarSlots, mainInventorySlots, area);
             if (target == null) ItemInventoryService.ItemRotateHelper.setRotated(stack, wasRotated);
         }
         if (target == null) {
@@ -182,6 +196,33 @@ public abstract class StorageContainerMenuBaseMixin {
         source.setChanged();
         source.onTake(player, original);
         callback.setReturnValue(original);
+    }
+
+    @Unique
+    private Slot findPlayerInventoryAnchor(List<Slot> hotbarSlots, List<Slot> mainInventorySlots, Area area) {
+        Slot hotbarTarget = findHotbarInventoryAnchor(hotbarSlots, area);
+        return hotbarTarget != null ? hotbarTarget : findMainInventoryAnchor(mainInventorySlots, area);
+    }
+
+    @Unique
+    private Slot findHotbarInventoryAnchor(List<Slot> slots, Area area) {
+        if (slots.size() < 9 || area.height() > 1 || area.width() > 9) return null;
+
+        for (int column = 0; column + area.width() <= 9; column++) {
+            boolean valid = true;
+            for (int occupiedIndex = 0; occupiedIndex < 9 && valid; occupiedIndex++) {
+                ItemStack existing = slots.get(occupiedIndex).getItem();
+                if (existing.isEmpty()) continue;
+                Area existingArea = ItemInventoryService.getArea(existing);
+                boolean overlaps = column < occupiedIndex + existingArea.width()
+                        && column + area.width() > occupiedIndex;
+                if (overlaps) {
+                    valid = false;
+                }
+            }
+            if (valid) return slots.get(column);
+        }
+        return null;
     }
 
     @Unique

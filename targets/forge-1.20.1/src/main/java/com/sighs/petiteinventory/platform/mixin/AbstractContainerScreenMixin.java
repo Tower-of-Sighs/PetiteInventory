@@ -506,6 +506,58 @@ public abstract class AbstractContainerScreenMixin extends Screen {
         return new int[] { Math.max(1, Math.min(9, resizedWidth)), Math.max(1, Math.min(9, resizedHeight)) };
     }
 
+    /**
+     * Vanilla commits a pickup action from mouseClicked, before mouseReleased
+     * runs. Reject an invalid footprint at the earlier event so a failed right
+     * click cannot place one item into an otherwise blocked multi-slot area.
+     */
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    private void preventInvalidRightPlacement(double mouseX, double mouseY, int button,
+                                               CallbackInfoReturnable<Boolean> callback) {
+        if (ClientEditMode.isEnabled() || button != 1) return;
+
+        ItemStack cursorItem = getCursorItem();
+        if (cursorItem.isEmpty()) return;
+
+        Slot slot = findSlot(mouseX, mouseY);
+        if (!ClientInventoryContext.isClientGridSlot(slot)) return;
+
+        if (!canPlaceCursorItem(slot, cursorItem)) {
+            callback.setReturnValue(true);
+        }
+    }
+
+    @Unique
+    private boolean canPlaceCursorItem(Slot slot, ItemStack cursorItem) {
+        if (slot == null || cursorItem.isEmpty()) return false;
+
+        ContainerGrid grid = ClientInventoryContext.getContainerGrid();
+        ContainerGrid.Cell cell = grid.getCell(slot);
+        if (cell == null) return false;
+
+        Area area = getRotatedArea(cursorItem);
+        Set<ContainerGrid.Cell> targetCells = grid.getCells(cell, area);
+        if (targetCells.size() != area.width() * area.height()) return false;
+
+        Map<ContainerGrid.Cell, ContainerGrid.Cell> cellMap = grid.getCellMap();
+        for (ContainerGrid.Cell target : targetCells) {
+            if (!target.slot().container.equals(cell.slot().container)
+                    || !target.slot().mayPlace(cursorItem)) {
+                return false;
+            }
+
+            ItemStack existing = target.slot().getItem();
+            boolean stackable = existing.isEmpty()
+                    || (ItemStack.isSameItemSameTags(existing, cursorItem)
+                    && existing.getCount() < existing.getMaxStackSize());
+            if (!stackable) return false;
+
+            ContainerGrid.Cell owner = cellMap.get(target);
+            if (owner != null && !owner.equals(cell)) return false;
+        }
+        return true;
+    }
+
     @Inject(method = "mouseReleased",
             at = @At("HEAD"),
             cancellable = true)

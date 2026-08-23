@@ -8,9 +8,11 @@
     "AbstractContainerMenuMixin",
     "ContainerCloseDefenseMixin",
     "CompoundTagMixin",
+    "HopperBlockEntityMixin",
     "InventoryMixin",
     "ServerPlayerMixin",
-    "StorageContainerMenuBaseMixin"
+    "StorageContainerMenuBaseMixin",
+    "VanillaInventoryCodeHooksMixin"
   ],
   "client": [
     "AbstractContainerScreenMixin",
