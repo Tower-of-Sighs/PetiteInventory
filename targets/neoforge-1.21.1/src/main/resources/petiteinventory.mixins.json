@@ -1,0 +1,27 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.sighs.petiteinventory.platform.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "AbstractContainerMenuMixin",
+    "ContainerCloseDefenseMixin",
+    "CompoundTagMixin",
+    "HopperBlockEntityMixin",
+    "InventoryMixin",
+    "ServerPlayerMixin",
+    "StorageContainerMenuBaseMixin",
+    "VanillaInventoryCodeHooksMixin"
+  ],
+  "client": [
+    "AbstractContainerScreenMixin",
+    "InventoryScreenMixin",
+    "StorageScreenBaseMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}

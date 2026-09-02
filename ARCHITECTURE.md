@@ -11,11 +11,12 @@ mod API, or a version-specific runtime contract.
 
 - `core` contains value objects and footprint math.
 - `inventory` contains `Area`, `BorderTheme`, edit-mode state, admission result,
-  the generic `ContainerGrid`, and generic stacking algorithms.
+  the generic `ContainerGrid`, item-rule facade, automation insertion policy,
+  and generic stacking algorithms.
 - `service` contains admission policy, runtime subscriptions, item-footprint
   parsing, and rotation rules.
-- `spi` contains the ports for stacks, inventory slots, grid slots, platform
-  providers, and other target boundaries.
+- `spi` contains the ports for stacks, item-rule lookup, inventory slots,
+  grid slots, platform providers, and other target boundaries.
 - `event` contains the synchronous loader-neutral event bus and shared events.
 - `api` contains stable public value types.
 
@@ -30,8 +31,9 @@ For Forge 1.20.1 this means:
 - `platform.spi` adapts `ItemStack`, player inventories, menu slots, and grid
   slots to the common ports.
 - `platform.inventory` adapts Forge menus, hoppers, registries, configuration,
-  and Sophisticated Core. Its `ContainerGrid` and `ContainerStackingService`
-  are thin adapters over common algorithms.
+  and Sophisticated Core. Its `ContainerGrid`, `ContainerStackingService`,
+  `ItemInventoryService`, and automation entry point are thin adapters over
+  common algorithms; no footprint or insertion policy is defined there.
 - `platform.mixin` only translates game callbacks into `InventoryEvents` or
   delegates to target services; it does not own inventory policy.
 - `platform`, `bootstrap`, `client`, `config`, and `compat` contain lifecycle,
@@ -41,6 +43,12 @@ There is intentionally no target `com.sighs.petiteinventory.inventory` package.
 When a future target needs a different implementation, it should implement a
 common SPI in its own target package rather than moving reusable logic out of
 `common`.
+
+The NeoForge 1.21.1 target follows the same boundary. Its `neoforge` package
+contains the loader lifecycle, explicit game-bus registration, command bridge,
+config-file backend, ServiceLoader provider, and the 1.21 data-component
+translation for `ItemStack`; no Forge/Mixin implementation is copied into that
+target.
 
 ## Event flow
 

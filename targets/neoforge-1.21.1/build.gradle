@@ -5,20 +5,20 @@ plugins {
 }
 
 def properties = new Properties()
-file('../../gradle.properties').withInputStream { properties.load(it) }
 file('gradle.properties').withInputStream { properties.load(it) }
 properties.each { key, value -> ext.set(key.toString(), value.toString()) }
 
 group = mod_group_id
 version = mod_version
 
-base {
-    archivesName = "${mod_name}-neoforge-1.21.1"
-}
+base { archivesName = "${mod_name}-neoforge-1.21.1" }
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(21)
 }
+
+// NeoForge 1.21.1 owns only the loader lifecycle and the SPI translation;
+// inventory policy and event dispatch remain in common.
 
 neoForge {
     version = neoforge_121_version
@@ -40,8 +40,48 @@ neoForge {
     }
 }
 
+sourceSets.main.output.dir(
+        project(':common').layout.buildDirectory.dir('classes/java/main'),
+        builtBy: ':common:classes'
+)
+
+def copyCommonClasses = tasks.register('copyCommonClasses', Copy) {
+    dependsOn ':common:classes'
+    from project(':common').sourceSets.main.output.classesDirs
+    into layout.buildDirectory.dir('classes/java/main')
+}
+
 dependencies {
-    implementation project(':common')
+    compileOnly project(':common')
+
+    implementation "curse.maven:sophisticated-core-618298:8705083"
+    implementation "curse.maven:sophisticated-backpacks-422301:8687841"
+    implementation "curse.maven:item-borders-513769:5591010"
+    implementation "curse.maven:iceberg-520110:6423863"
+    implementation "curse.maven:prism-lib-638111:6372979"
+    implementation "curse.maven:kubejs-238086:8715199"
+    implementation "curse.maven:rhino-416294:8463898"
+    implementation "curse.maven:architectury-api-419699:8492726"
+    implementation "curse.maven:jei-238222:8769490"
+}
+
+repositories {
+    mavenCentral()
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "CurseMaven"
+                url = "https://www.cursemaven.com"
+            }
+        }
+        filter {
+            includeGroup("curse.maven")
+        }
+    }
+}
+
+tasks.matching { it.name in ['runClient', 'runServer'] }.configureEach {
+    dependsOn copyCommonClasses
 }
 
 tasks.named('processResources', ProcessResources).configure {
@@ -64,10 +104,9 @@ tasks.named('processResources', ProcessResources).configure {
 
 tasks.named('jar', Jar).configure {
     from project(':common').sourceSets.main.output
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
-
-apply from: file('../../gradle/target-conventions/publish.gradle')

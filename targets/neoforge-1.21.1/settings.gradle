@@ -6,7 +6,7 @@ pluginManagement {
     }
 }
 
-rootProject.name = 'SighsTemple-neoforge-1.21.1'
+rootProject.name = 'PetiteInventory-neoforge-1.21.1'
 
 include 'common'
 project(':common').projectDir = file('../../common')

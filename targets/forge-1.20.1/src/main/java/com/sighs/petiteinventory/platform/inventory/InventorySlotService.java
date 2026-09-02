@@ -17,7 +17,9 @@ import java.util.List;
 
 public class InventorySlotService {
     public static ContainerGrid getContainerGrid(AbstractContainerMenu menu) {
-        return getContainerGrid(menu, true);
+        // Container participation is opt-in. Callers with a screen-specific
+        // decision should use the overload below explicitly.
+        return getContainerGrid(menu, false);
     }
 
     /**
@@ -34,6 +36,11 @@ public class InventorySlotService {
                 if (enableInventory) girdSlot.add(menu.getSlot(i));
             }
             grid = ContainerGrid.parse(girdSlot);
+        } else if (!enableContainer) {
+            // Foreign menus are opt-in. Returning an empty grid is important:
+            // otherwise their player-inventory slots would still be treated as
+            // Petite slots on screens such as anvils and crafting tables.
+            grid = ContainerGrid.parse(List.of());
         }
         else if (SophisticatedBackpacksCompat.isBackpackMenu(menu)) {
             List<Slot> playerMainSlots = enableInventory

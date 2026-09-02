@@ -36,6 +36,8 @@ Hold `Ctrl` to select multiple items and drag to select an area. `Ctrl+Shift` ex
 
 In edit mode, each container screen displays a layout toggle at the top. It controls whether that screen uses the Petite layout and takes effect immediately. The player inventory and hotbar remain independently configurable.
 
+New installations use whitelist mode by default, so no foreign container is enabled until selected.
+
 Two commands control the default screen behavior:
 
 - `/petiteinventory blacklist`: force blacklist mode, enabling the layout for every container until individual screens are disabled.

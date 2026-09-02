@@ -1,11 +1,9 @@
 package com.sighs.petiteinventory.platform.inventory;
 
 import com.sighs.petiteinventory.inventory.Area;
-import com.sighs.petiteinventory.inventory.AreaEvent;
-import com.sighs.petiteinventory.event.InventoryEvents;
-import com.sighs.petiteinventory.config.ItemSizeRuleCache;
-import com.sighs.petiteinventory.service.ItemFootprintRules;
 import com.sighs.petiteinventory.service.ItemRotation;
+import com.sighs.petiteinventory.spi.ItemRulePort;
+import com.sighs.petiteinventory.spi.StackPort;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagKey;
@@ -14,237 +12,137 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.tags.ITagManager;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
 import java.util.stream.Collectors;
 
-public class ItemInventoryService {
-    private static final TagKey<Item> TOOLS_TAG =
+/** Forge translation facade for the common item-rule service. */
+public final class ItemInventoryService {
+    private static final TagKey<Item> FORGE_TOOLS =
             ItemTags.create(new ResourceLocation("forge", "tools"));
-    private static final TagKey<net.minecraft.world.item.Item> SWORDS_TAG =
+    private static final TagKey<Item> FORGE_SWORDS =
             ItemTags.create(new ResourceLocation("forge", "swords"));
 
-    private static final String TAG = ItemRotation.TAG;
+    private static final StackPort<ItemStack> STACKS = new ForgeStackPort();
+    private static final ItemRulePort<ItemStack> RULES = new ItemRulePort<ItemStack>() {
+        @Override public String itemId(ItemStack stack) {
+            return stack == null ? null : getItemRegistryName(stack.getItem());
+        }
+        @Override public String rule(ItemStack stack, String itemId) {
+            return com.sighs.petiteinventory.config.ItemSizeRuleCache.matchItem(itemId, stack);
+        }
+    };
+    private static final com.sighs.petiteinventory.inventory.ItemInventoryService<ItemStack> COMMON =
+            new com.sighs.petiteinventory.inventory.ItemInventoryService<>(STACKS, RULES);
 
-    /**
-     * 检查ItemStack是否为工具或武器
-     * @param stack 待检查的物品堆栈
-     * @return 如果是工具或武器返回true，否则返回false
-     */
+    private ItemInventoryService() {
+    }
+
+    public static StackPort<ItemStack> stackPort() { return STACKS; }
+    public static Area<ItemStack> getArea(ItemStack stack) { return COMMON.getArea(stack); }
+    public static boolean isSameItemIgnoreRotate(ItemStack first, ItemStack second) {
+        return COMMON.isSameItemIgnoreRotate(first, second);
+    }
+
     public static boolean isToolOrWeapon(ItemStack stack) {
-        if (stack.isEmpty()) return false;
-
-        if (stack.is(ItemTags.TOOLS)) {
-            return true;
-        }
-
-        if (stack.is(ItemTags.SWORDS)) {
-            return true;
-        }
-
-        if (stack.is(TOOLS_TAG)) {
-            return true;
-        }
-
-        if (stack.is(SWORDS_TAG)) {
-            return true;
-        }
-
-        return false;
+        if (stack == null || stack.isEmpty()) return false;
+        return stack.is(ItemTags.TOOLS) || stack.is(ItemTags.SWORDS)
+                || stack.is(FORGE_TOOLS) || stack.is(FORGE_SWORDS);
     }
 
-    /**
-     * 比较两个ItemStack是否相同（忽略旋转标记）
-     */
-    public static boolean isSameItemIgnoreRotate(ItemStack stack1, ItemStack stack2) {
-        if (stack1 == stack2) return true;
-        if (stack1.isEmpty() || stack2.isEmpty()) return false;
-        if (stack1.getItem() != stack2.getItem()) return false;
-
-        // 复制物品栈并移除旋转标记后比较
-        ItemStack copy1 = stack1.copy();
-        ItemStack copy2 = stack2.copy();
-
-        ItemRotateHelper.setRotated(copy1, false);
-        ItemRotateHelper.setRotated(copy2, false);
-
-        return ItemStack.isSameItemSameTags(copy1, copy2);
-    }
-
-    public static class ItemRotateHelper {
-        public static final String TAG = ItemRotation.TAG;
-
-        /** 写：客户端用 */
-        public static void setRotated(ItemStack stack, boolean rotated) {
-            if (rotated) {
-                stack.getOrCreateTag().putBoolean(TAG, true);
-            } else {
-                if (stack.hasTag()) {
-                    stack.getTag().remove(TAG);
-                    if (stack.getTag().isEmpty()) stack.setTag(null);
-                }
-            }
-        }
-
-        /** 读：两端都用 */
-        public static boolean isRotated(ItemStack stack) {
-            return stack.hasTag() && stack.getTag().getBoolean(TAG);
-        }
+    public static final class ItemRotateHelper {
+        private ItemRotateHelper() { }
+        public static void setRotated(ItemStack stack, boolean rotated) { STACKS.setRotated(stack, rotated); }
+        public static boolean isRotated(ItemStack stack) { return STACKS.isRotated(stack); }
     }
 
     public static String getItemRegistryName(Item item) {
-        if (item == null) {
-            return null;
-        }
-
-        ResourceLocation registryName = ForgeRegistries.ITEMS.getKey(item);
-        if (registryName == null) {
-            return null;
-        }
-
-        return registryName.toString();
+        if (item == null) return null;
+        ResourceLocation id = ForgeRegistries.ITEMS.getKey(item);
+        return id == null ? null : id.toString();
     }
 
     public static Item getItemById(String registryName) {
-        if (registryName == null || registryName.isEmpty()) {
-            return null;
-        }
-
+        if (registryName == null || registryName.isEmpty()) return null;
         try {
-            ResourceLocation resourceLocation = new ResourceLocation(registryName);
-
-            if (!ForgeRegistries.ITEMS.containsKey(resourceLocation)) {
-                return null;
-            }
-
-            Item item = ForgeRegistries.ITEMS.getValue(resourceLocation);
-
-            return item;
-        } catch (Exception e) {
-            return null;
-        }
+            ResourceLocation id = new ResourceLocation(registryName);
+            return ForgeRegistries.ITEMS.containsKey(id) ? ForgeRegistries.ITEMS.getValue(id) : null;
+        } catch (Exception ignored) { return null; }
     }
 
     public static Collection<Item> getItemsOfTag(ResourceLocation tagId) {
-        TagKey<Item> tagKey = ForgeRegistries.ITEMS.tags().createTagKey(tagId);
-        ITagManager<Item> tagManager = ForgeRegistries.ITEMS.tags();
+        if (tagId == null || ForgeRegistries.ITEMS.tags() == null) return Collections.emptyList();
+        TagKey<Item> key = ForgeRegistries.ITEMS.tags().createTagKey(tagId);
+        ITagManager<Item> manager = ForgeRegistries.ITEMS.tags();
         Collection<Item> result = new HashSet<>();
-
-        if (tagManager != null && tagManager.isKnownTagName(tagKey)) {
-            tagManager.getTag(tagKey).forEach(result::add);
-        }
+        if (manager.isKnownTagName(key)) manager.getTag(key).forEach(result::add);
         return result;
     }
 
     public static boolean isTagExists(ResourceLocation tagId) {
-        TagKey<Item> tagKey = ForgeRegistries.ITEMS.tags().createTagKey(tagId);
-        ITagManager<Item> tagManager = ForgeRegistries.ITEMS.tags();
-        return tagManager != null && tagManager.isKnownTagName(tagKey);
+        if (tagId == null || ForgeRegistries.ITEMS.tags() == null) return false;
+        TagKey<Item> key = ForgeRegistries.ITEMS.tags().createTagKey(tagId);
+        return ForgeRegistries.ITEMS.tags().isKnownTagName(key);
     }
 
     public static List<Item> resolveItemList(List<String> identifiers) {
         List<Item> result = new ArrayList<>();
-
+        if (identifiers == null) return result;
         for (String id : identifiers) {
             if (id == null || id.isEmpty()) continue;
-
             if (id.startsWith("#")) {
-                String tagIdString = id.substring(1);
-                try {
-                    ResourceLocation tagId = new ResourceLocation(tagIdString);
-                    Collection<Item> tagItems = getItemsOfTag(tagId);
-                    if (tagItems.isEmpty()) {
-                    } else {
-                        result.addAll(tagItems);
-                    }
-                } catch (Exception ignored) {}
+                try { result.addAll(getItemsOfTag(new ResourceLocation(id.substring(1)))); }
+                catch (Exception ignored) { }
             } else {
                 Item item = getItemById(id);
-                if (item != null) {
-                    result.add(item);
-                }
+                if (item != null) result.add(item);
             }
         }
-
         return result;
     }
 
     public static List<ResourceLocation> getItemTags(Item item) {
-        ITagManager<Item> tagManager = ForgeRegistries.ITEMS.tags();
-
-        if (tagManager == null) {
-            return Collections.emptyList();
-        }
-
-        return tagManager.getReverseTag(item)
-                .map(reverseTag ->
-                        reverseTag.getTagKeys()
-                                .map(TagKey::location)
-                                .collect(Collectors.toList()))
+        ITagManager<Item> manager = ForgeRegistries.ITEMS.tags();
+        if (manager == null || item == null) return Collections.emptyList();
+        return manager.getReverseTag(item)
+                .map(reverse -> reverse.getTagKeys().map(TagKey::location).collect(Collectors.toList()))
                 .orElse(Collections.emptyList());
     }
 
-    public static boolean isItemIdEmpty(String id) {
-        return id == null || id.equals("minecraft:air");
-    }
+    public static boolean isItemIdEmpty(String id) { return id == null || "minecraft:air".equals(id); }
 
-    public static Area<ItemStack> getArea(ItemStack itemStack) {
-        // 1. 首先检查NBT精确匹配（最高优先级）
-        String itemId = getItemRegistryName(itemStack.getItem());
-        if (itemId != null && !itemStack.isEmpty()) {
-            // 生成NBT键格式，检查是否为NBT物品
-            String nbtKey = getNBTKey(itemId, itemStack);
-            if (nbtKey != null) {
-                String nbtSize = ItemSizeRuleCache.NBTMapCache.get(nbtKey);
-                if (nbtSize != null) {
-                    // 解析尺寸并应用旋转
-                    return areaFromRule(nbtSize, itemStack);
-                }
+    private static final class ForgeStackPort implements StackPort<ItemStack> {
+        @Override public boolean isEmpty(ItemStack stack) { return stack == null || stack.isEmpty(); }
+        @Override public boolean isStackable(ItemStack stack) { return stack != null && stack.isStackable(); }
+        @Override public ItemStack copy(ItemStack stack) { return stack.copy(); }
+        @Override public int count(ItemStack stack) { return stack.getCount(); }
+        @Override public void setCount(ItemStack stack, int count) { stack.setCount(count); }
+        @Override public void shrink(ItemStack stack, int amount) { stack.shrink(amount); }
+        @Override public void grow(ItemStack stack, int amount) { stack.grow(amount); }
+        @Override public int maxStackSize(ItemStack stack) { return stack.getMaxStackSize(); }
+        @Override public boolean sameItemIgnoringRotation(ItemStack first, ItemStack second) {
+            if (first == second) return true;
+            if (isEmpty(first) || isEmpty(second) || first.getItem() != second.getItem()) return false;
+            ItemStack left = first.copy(), right = second.copy();
+            setRotated(left, false); setRotated(right, false);
+            return ItemStack.isSameItemSameTags(left, right);
+        }
+        @Override public boolean isRotated(ItemStack stack) {
+            return stack != null && stack.hasTag() && stack.getTag().getBoolean(ItemRotation.TAG);
+        }
+        @Override public void setRotated(ItemStack stack, boolean rotated) {
+            if (stack == null) return;
+            if (rotated) stack.getOrCreateTag().putBoolean(ItemRotation.TAG, true);
+            else if (stack.hasTag()) {
+                stack.getTag().remove(ItemRotation.TAG);
+                if (stack.getTag().isEmpty()) stack.setTag(null);
             }
         }
-
-        // 2. 尝试普通ID匹配
-        String normalSize = ItemSizeRuleCache.matchItem(itemId);
-        if (normalSize != null) {
-            return areaFromRule(normalSize, itemStack);
+        @Override public com.sighs.petiteinventory.core.ItemSize footprint(ItemStack stack) {
+            return COMMON.getArea(stack).size();
         }
-
-        // 3. 默认1×1
-        return createArea(1, 1, itemStack);
-    }
-
-    private static Area<ItemStack> areaFromRule(String expression, ItemStack stack) {
-        com.sighs.petiteinventory.core.ItemSize size;
-        try {
-            size = ItemFootprintRules.parse(expression);
-        } catch (IllegalArgumentException ignored) {
-            return createArea(1, 1, stack);
-        }
-        size = ItemFootprintRules.rotate(size, ItemRotateHelper.isRotated(stack));
-        return createArea(size.width(), size.height(), stack);
-    }
-
-    private static Area<ItemStack> createArea(int width, int height, ItemStack stack) {
-        AreaEvent<ItemStack> event = new AreaEvent<>(width, height, stack);
-        InventoryEvents.publish(event);
-        return new Area<>(event.width, event.height, event.itemStack);
-    }
-
-    /**
-     * 从ItemStack生成NBT精确匹配键
-     */
-    private static String getNBTKey(String itemId, ItemStack stack) {
-        if (!stack.hasTag()) return null;
-
-        // TACZ枪械支持
-        if (itemId.equals("tacz:modern_kinetic_gun") && stack.getTag().contains("GunId")) {
-            String gunId = stack.getTag().getString("GunId");
-            if (gunId != null && !gunId.isEmpty()) {
-                return itemId + "{GunId:\"" + gunId + "\"}";
-            }
-        }
-
-        // 可以扩展其他模组的NBT匹配规则
-
-        return null;
     }
 }

@@ -38,8 +38,9 @@ CurseForge 项目编号：`1386712`<br>
 
 此外还有两条指令：
 
-- `/petiteinventory blacklist`：强制黑名单模式，默认对所有容器启用布局，再按需关闭。
-- `/petiteinventory whitelist`：强制白名单模式，默认对所有容器关闭布局，再按需开启。
+- 默认使用白名单模式，对所有容器关闭布局，再按需开启。
+- `/petiteinventory blacklist`：切换为黑名单模式，默认对所有容器启用布局，再按需关闭。
+- `/petiteinventory whitelist`：切换回白名单模式，默认对所有容器关闭布局，再按需开启。
 
 ## 注意事项
 

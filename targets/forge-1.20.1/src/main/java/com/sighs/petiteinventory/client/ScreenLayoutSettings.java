@@ -16,6 +16,8 @@ import java.util.Map;
 
 /** Per-container-screen client preference for the Petite layout. */
 public final class ScreenLayoutSettings {
+    /** New installations start in whitelist mode: no foreign container is enabled. */
+    private static final boolean DEFAULT_ENABLED = false;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Type MAP_TYPE = new TypeToken<Map<String, Boolean>>() {}.getType();
     private static final Path FILE = FMLPaths.CONFIGDIR.get()
@@ -64,12 +66,12 @@ public final class ScreenLayoutSettings {
     }
 
     private static boolean loadDefaultEnabled() {
-        if (!Files.exists(MODE_FILE)) return true;
+        if (!Files.exists(MODE_FILE)) return DEFAULT_ENABLED;
         try (Reader reader = Files.newBufferedReader(MODE_FILE, StandardCharsets.UTF_8)) {
             Boolean enabled = GSON.fromJson(reader, Boolean.class);
-            return enabled == null || enabled;
+            return enabled != null && enabled;
         } catch (Exception ignored) {
-            return true;
+            return DEFAULT_ENABLED;
         }
     }
 

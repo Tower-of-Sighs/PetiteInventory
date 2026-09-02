@@ -52,7 +52,7 @@ PetiteInventory 是一个适用于 Minecraft Forge 的模块化网格物品栏�
 - **JEI：** PetiteInventory 不会替换 JEI 的配方或搜索逻辑，尺寸规则只作用于支持的物品栏界面。
 - **排序、扩展槽位及其他改动物品栏的模组：** 对槽位顺序、坐标或点击逻辑进行改写的模组可能需要单独关闭或配置对应 Screen。
 
-Screen 开关使用具体的 `Screen` 类作为标识，而不只依据容器菜单类型。因此，即使两个界面使用同一种 Menu，也可以分别配置。编辑模式下，容器界面顶部的勾选框控制当前 Screen 是否启用 Petite 布局；`/petiteinventory blacklist` 和 `/petiteinventory whitelist` 可以切换默认启用逻辑，无需列出所有 Screen。
+Screen 默认使用白名单模式，对所有容器关闭布局；开关使用具体的 `Screen` 类作为标识，而不只依据容器菜单类型。因此，即使两个界面使用同一种 Menu，也可以分别配置。编辑模式下，容器界面顶部的勾选框控制当前 Screen 是否启用 Petite 布局；`/petiteinventory blacklist` 和 `/petiteinventory whitelist` 可以切换默认启用逻辑，无需列出所有 Screen。
 
 ## 注意事项
 
