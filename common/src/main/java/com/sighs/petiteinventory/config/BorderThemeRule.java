@@ -2,9 +2,10 @@ package com.sighs.petiteinventory.config;
 
 import java.util.List;
 
+/** Serializable border-theme rule entry shared by all targets. */
 public class BorderThemeRule {
-    List<String> match;  // 支持物品ID或标签（如 "#minecraft:tools"）
-    String theme;         // 主题ID
+    public List<String> match;
+    public String theme;
 
     public List<String> getMatch() {
         return match;

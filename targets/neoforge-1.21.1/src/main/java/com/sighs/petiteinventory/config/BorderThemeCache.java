@@ -1,13 +1,12 @@
 package com.sighs.petiteinventory.config;
 
 import com.sighs.petiteinventory.inventory.BorderTheme;
-import net.minecraft.core.Holder;
-import net.minecraft.core.component.DataComponents;
+import com.sighs.petiteinventory.platform.inventory.ItemInventoryService;
+import com.sighs.petiteinventory.spi.ThemeRulePort;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.ItemTags;
-import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
@@ -16,13 +15,32 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class BorderThemeCache {
-    private static final Map<String, BorderTheme> COLOR_MAP = new HashMap<>();
-    private static final Map<String, BorderTheme> TAG_CACHE = new HashMap<>();
+    private static final RuleTable<BorderTheme> RULES = new RuleTable<>();
+    private static final ThemeRulePort<ItemStack> THEME_RULES = new ThemeRulePort<ItemStack>() {
+        @Override public String itemId(ItemStack stack) {
+            return stack == null || stack.isEmpty() ? null : BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
+        }
+        @Override public BorderTheme exactTheme(String itemId) { return matchExact(itemId); }
+        @Override public BorderTheme tagTheme(String itemId) { return matchTagForItem(itemId); }
+        @Override public BorderTheme nbtTheme(ItemStack stack, String itemId) { return matchNbt(itemId, stack); }
+    };
 
     public static void load() {
-        COLOR_MAP.clear();
-        TAG_CACHE.clear();
-        COLOR_MAP.putAll(BorderThemeFileStore.loadColors());
+        RULES.clear();
+        for (Map.Entry<String, BorderTheme> entry : BorderThemeFileStore.loadColors().entrySet()) {
+            putEntry(entry.getKey(), entry.getValue());
+        }
+    }
+
+    private static void putEntry(String key, BorderTheme theme) {
+        if (key == null || theme == null) return;
+        if (key.startsWith("TAG:")) {
+            RULES.putTag(key.substring(4), theme);
+        } else if (key.contains("{") && key.contains("}")) {
+            RULES.putNbt(key, theme);
+        } else {
+            RULES.putExact(key, theme);
+        }
     }
 
     public static BorderTheme getTheme(Item item) {
@@ -31,53 +49,52 @@ public class BorderThemeCache {
 
     public static BorderTheme getTheme(Item item, ItemStack stack) {
         if (item == null) return BorderTheme.DEFAULT;
-
         String itemId = BuiltInRegistries.ITEM.getKey(item).toString();
-        BorderTheme theme = COLOR_MAP.get(itemId);
+        BorderTheme theme = THEME_RULES.theme(stack, itemId);
+        return theme == null ? BorderTheme.DEFAULT : theme;
+    }
 
-        if (theme == null && itemId.equals("tacz:modern_kinetic_gun")) {
-            CompoundTag customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-            if (customData.contains("GunId")) {
-                String gunId = customData.getString("GunId");
-                if (gunId != null && !gunId.isEmpty()) {
-                    String preciseKey = itemId + "{GunId:\"" + gunId + "\"}";
-                    theme = COLOR_MAP.get(preciseKey);
-                }
-            }
+    public static BorderTheme matchExact(String itemId) {
+        return RULES.exact(itemId);
+    }
+
+    public static BorderTheme matchNbt(String itemId, ItemStack stack) {
+        if (!"tacz:modern_kinetic_gun".equals(itemId) || stack == null || stack.isEmpty()) return null;
+        CompoundTag customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        if (!customData.contains("GunId")) return null;
+        String gunId = customData.getString("GunId");
+        if (gunId == null || gunId.isEmpty()) return null;
+        return RULES.nbt(itemId + "{GunId:\"" + gunId + "\"}");
+    }
+
+    public static BorderTheme matchTagForItem(String itemId) {
+        Item item = ItemInventoryService.getItemById(itemId);
+        if (item == null) return null;
+        for (ResourceLocation tag : ItemInventoryService.getItemTags(item)) {
+            BorderTheme theme = RULES.tag(tag.toString());
+            if (theme != null) return theme;
         }
-        if (theme != null) return theme;
-
-        Holder<Item> holder = BuiltInRegistries.ITEM.wrapAsHolder(item);
-        for (Map.Entry<String, BorderTheme> tagEntry : COLOR_MAP.entrySet()) {
-            if (tagEntry.getKey().startsWith("TAG:")) {
-                String tagName = tagEntry.getKey().substring(4);
-                TagKey<Item> tagKey = ItemTags.create(ResourceLocation.parse(tagName));
-                if (BuiltInRegistries.ITEM.getTag(tagKey).map(tag -> tag.contains(holder)).orElse(false)) {
-                    TAG_CACHE.put(itemId, tagEntry.getValue());
-                    return tagEntry.getValue();
-                }
-            }
-        }
-
-        theme = TAG_CACHE.get(itemId);
-        if (theme != null) return theme;
-
-        return BorderTheme.DEFAULT;
+        return null;
     }
 
     public static void setTheme(String itemId, BorderTheme theme) {
-        COLOR_MAP.put(itemId, theme);
-        TAG_CACHE.remove(itemId);
-        BorderThemeFileStore.saveColors(COLOR_MAP);
+        putEntry(itemId, theme);
+        saveConfig();
     }
 
     public static void clearTheme(String itemId) {
-        COLOR_MAP.remove(itemId);
-        TAG_CACHE.remove(itemId);
-        BorderThemeFileStore.saveColors(COLOR_MAP);
+        String tagId = itemId != null && itemId.startsWith("TAG:") ? itemId.substring(4) : itemId;
+        RULES.removeExact(itemId);
+        RULES.removeNbt(itemId);
+        RULES.removeTag(tagId);
+        saveConfig();
+    }
+
+    public static void saveConfig() {
+        BorderThemeFileStore.saveColors(RULES.storedMap("TAG:"));
     }
 
     public static Map<String, BorderTheme> getAllThemes() {
-        return new HashMap<>(COLOR_MAP);
+        return new HashMap<>(RULES.storedMap("TAG:"));
     }
 }

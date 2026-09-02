@@ -15,10 +15,14 @@ mod API, or a version-specific runtime contract.
   and generic stacking algorithms.
 - `service` contains admission policy, runtime subscriptions, item-footprint
   parsing, and rotation rules.
+- `config` contains loader-neutral serializable rule entries and `RuleTable`,
+  the shared exact/tag/NBT index used by item-footprint and border-theme caches.
 - `spi` contains the ports for stacks, item-rule lookup, inventory slots,
-  grid slots, platform providers, and other target boundaries.
+  border-theme lookup, grid slots, platform providers, and other target
+  boundaries. `ItemRulePort` and `ThemeRulePort` own shared precedence.
 - `event` contains the synchronous loader-neutral event bus and shared events.
 - `api` contains stable public value types.
+- `client` contains loader-neutral client state shared by targets.
 
 Common code must not import Minecraft, Forge, Mixin, networking, rendering,
 configuration backends, or optional integrations.

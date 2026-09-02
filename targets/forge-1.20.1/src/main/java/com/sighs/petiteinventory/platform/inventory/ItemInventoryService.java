@@ -31,8 +31,14 @@ public final class ItemInventoryService {
         @Override public String itemId(ItemStack stack) {
             return stack == null ? null : getItemRegistryName(stack.getItem());
         }
-        @Override public String rule(ItemStack stack, String itemId) {
-            return com.sighs.petiteinventory.config.ItemSizeRuleCache.matchItem(itemId, stack);
+        @Override public String exactRule(String itemId) {
+            return com.sighs.petiteinventory.config.ItemSizeRuleCache.matchExact(itemId);
+        }
+        @Override public String tagRule(String itemId) {
+            return com.sighs.petiteinventory.config.ItemSizeRuleCache.matchTagForItem(itemId);
+        }
+        @Override public String nbtRule(ItemStack stack, String itemId) {
+            return com.sighs.petiteinventory.config.ItemSizeRuleCache.matchNbt(itemId, stack);
         }
     };
     private static final com.sighs.petiteinventory.inventory.ItemInventoryService<ItemStack> COMMON =

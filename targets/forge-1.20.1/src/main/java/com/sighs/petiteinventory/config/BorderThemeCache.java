@@ -1,88 +1,95 @@
 package com.sighs.petiteinventory.config;
 
 import com.sighs.petiteinventory.inventory.BorderTheme;
+import com.sighs.petiteinventory.platform.inventory.ItemInventoryService;
+import com.sighs.petiteinventory.spi.ThemeRulePort;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class BorderThemeCache {
-    private static final Map<String, BorderTheme> COLOR_MAP = new HashMap<>();
-    private static final Map<String, BorderTheme> TAG_CACHE = new HashMap<>();
+    private static final RuleTable<BorderTheme> RULES = new RuleTable<>();
+    private static final ThemeRulePort<ItemStack> THEME_RULES = new ThemeRulePort<ItemStack>() {
+        @Override public String itemId(ItemStack stack) {
+            return stack == null || stack.isEmpty() ? null : ForgeRegistries.ITEMS.getKey(stack.getItem()).toString();
+        }
+        @Override public BorderTheme exactTheme(String itemId) { return matchExact(itemId); }
+        @Override public BorderTheme tagTheme(String itemId) { return matchTagForItem(itemId); }
+        @Override public BorderTheme nbtTheme(ItemStack stack, String itemId) { return matchNbt(itemId, stack); }
+    };
 
     public static void load() {
-        COLOR_MAP.clear();
-        TAG_CACHE.clear();
-        COLOR_MAP.putAll(BorderThemeFileStore.loadColors());
+        RULES.clear();
+        for (Map.Entry<String, BorderTheme> entry : BorderThemeFileStore.loadColors().entrySet()) {
+            putEntry(entry.getKey(), entry.getValue());
+        }
     }
 
-    /* 对外统一入口：无 ItemStack 时退化为仅按 Item 匹配 */
+    private static void putEntry(String key, BorderTheme theme) {
+        if (key == null || theme == null) return;
+        if (key.startsWith("TAG:")) {
+            RULES.putTag(key.substring(4), theme);
+        } else if (key.contains("{") && key.contains("}")) {
+            RULES.putNbt(key, theme);
+        } else {
+            RULES.putExact(key, theme);
+        }
+    }
+
     public static BorderTheme getTheme(Item item) {
         return getTheme(item, ItemStack.EMPTY);
     }
 
-    /* 核心实现：带 ItemStack 可读取 NBT 做精确匹配 */
     public static BorderTheme getTheme(Item item, ItemStack stack) {
         if (item == null) return BorderTheme.DEFAULT;
-
-        // 1. 精确 ID 匹配（含 NBT 片段 key）
         String itemId = ForgeRegistries.ITEMS.getKey(item).toString();
-        BorderTheme theme = COLOR_MAP.get(itemId);
-
-// 2. TACZ 枪械按 GunId 精确匹配（直接读根层级）
-        if (theme == null && itemId.equals("tacz:modern_kinetic_gun") && stack.hasTag()) {
-            String gunId = stack.getTag().getString("GunId");
-            if (gunId != null && !gunId.isEmpty()) {
-                // ✅ 修正：NBT键格式与命令生成器保持一致
-                String preciseKey = itemId + "{GunId:\"" + gunId + "\"}";
-                theme = COLOR_MAP.get(preciseKey);
-            }
-        }
-        if (theme != null) return theme;
-
-        // 3. 标签匹配
-        ResourceLocation itemIdRL = ForgeRegistries.ITEMS.getKey(item);
-        if (itemIdRL != null) {
-            for (Map.Entry<String, BorderTheme> tagEntry : COLOR_MAP.entrySet()) {
-                if (tagEntry.getKey().startsWith("TAG:")) {
-                    String tagName = tagEntry.getKey().substring(4);
-                    ResourceLocation tagId = new ResourceLocation(tagName);
-                    if (ForgeRegistries.ITEMS.tags() != null &&
-                            ForgeRegistries.ITEMS.tags().getTag(
-                                    net.minecraft.tags.ItemTags.create(tagId)
-                            ).contains(item)) {
-                        TAG_CACHE.put(itemId, tagEntry.getValue());
-                        return tagEntry.getValue();
-                    }
-                }
-            }
-        }
-
-        // 4. 缓存的标签匹配
-        theme = TAG_CACHE.get(itemId);
-        if (theme != null) return theme;
-
-        return BorderTheme.DEFAULT;
+        BorderTheme theme = THEME_RULES.theme(stack, itemId);
+        return theme == null ? BorderTheme.DEFAULT : theme;
     }
 
-    /* 供指令调用：key 支持带 NBT 片段 */
+    public static BorderTheme matchExact(String itemId) {
+        return RULES.exact(itemId);
+    }
+
+    public static BorderTheme matchNbt(String itemId, ItemStack stack) {
+        if (!"tacz:modern_kinetic_gun".equals(itemId) || stack == null || !stack.hasTag()) return null;
+        String gunId = stack.getTag().getString("GunId");
+        if (gunId == null || gunId.isEmpty()) return null;
+        return RULES.nbt(itemId + "{GunId:\"" + gunId + "\"}");
+    }
+
+    public static BorderTheme matchTagForItem(String itemId) {
+        Item item = ItemInventoryService.getItemById(itemId);
+        if (item == null) return null;
+        for (ResourceLocation tag : ItemInventoryService.getItemTags(item)) {
+            BorderTheme theme = RULES.tag(tag.toString());
+            if (theme != null) return theme;
+        }
+        return null;
+    }
+
     public static void setTheme(String itemId, BorderTheme theme) {
-        COLOR_MAP.put(itemId, theme);
-        TAG_CACHE.remove(itemId);
-        BorderThemeFileStore.saveColors(COLOR_MAP);
+        putEntry(itemId, theme);
+        saveConfig();
     }
 
     public static void clearTheme(String itemId) {
-        COLOR_MAP.remove(itemId);
-        TAG_CACHE.remove(itemId);
-        BorderThemeFileStore.saveColors(COLOR_MAP);
+        String tagId = itemId != null && itemId.startsWith("TAG:") ? itemId.substring(4) : itemId;
+        RULES.removeExact(itemId);
+        RULES.removeNbt(itemId);
+        RULES.removeTag(tagId);
+        saveConfig();
+    }
+
+    public static void saveConfig() {
+        BorderThemeFileStore.saveColors(RULES.storedMap("TAG:"));
     }
 
     public static Map<String, BorderTheme> getAllThemes() {
-        return new HashMap<>(COLOR_MAP);
+        return new HashMap<>(RULES.storedMap("TAG:"));
     }
 }

@@ -36,13 +36,7 @@ public class InventorySlotService {
                 if (enableInventory) girdSlot.add(menu.getSlot(i));
             }
             grid = ContainerGrid.parse(girdSlot);
-        } else if (!enableContainer) {
-            // Foreign menus are opt-in. Returning an empty grid is important:
-            // otherwise their player-inventory slots would still be treated as
-            // Petite slots on screens such as anvils and crafting tables.
-            grid = ContainerGrid.parse(List.of());
-        }
-        else if (SophisticatedBackpacksCompat.isBackpackMenu(menu)) {
+        } else if (SophisticatedBackpacksCompat.isBackpackMenu(menu)) {
             List<Slot> playerMainSlots = enableInventory
                     ? SophisticatedBackpacksCompat.getPlayerMainInventorySlots(menu)
                     : List.of();
