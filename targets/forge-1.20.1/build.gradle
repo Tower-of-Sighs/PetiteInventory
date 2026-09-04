@@ -13,6 +13,7 @@ plugins {
     id 'eclipse'
     id 'idea'
     id 'net.minecraftforge.gradle' version '[6.0.16,6.2)'
+    id 'me.modmuss50.mod-publish-plugin' version '2.1.1'
 }
 
 apply plugin: 'org.spongepowered.mixin'
@@ -260,4 +261,30 @@ tasks.named('jar', Jar).configure {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+}
+
+
+
+publishMods {
+    file = tasks.jar.archiveFile
+    version = mod_version
+    changelog = file('../../CHANGELOG_EN.md').text
+    type = STABLE
+    displayName = "${mod_name} ${mod_version} for Forge 1.20.1"
+    modLoaders.add("forge")
+
+    curseforge {
+        projectId = "1386712"
+        accessToken = providers.environmentVariable("CURSEFORGE_TOKEN")
+        minecraftVersions.add("1.20.1")
+        client = true
+        server = true
+    }
+
+    modrinth {
+        projectId = "Prhnq8xz"
+        accessToken = providers.environmentVariable("MODRINTH_TOKEN")
+        minecraftVersions.add("1.20.1")
+        environment = CLIENT_AND_SERVER
+    }
 }

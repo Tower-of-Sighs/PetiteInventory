@@ -41,6 +41,10 @@ public class ItemSizeRuleFileStore {
               {
                 "match": ["#minecraft:slabs"],
                 "result": "2*1"
+              },
+              {
+                "match": ["tacz:modern_kinetic_gun{GunId:\\\"your_gun_id\\\"}"],
+                "result": "2*1"
               }
             ]""";
 
@@ -57,6 +61,8 @@ public class ItemSizeRuleFileStore {
                 return allRules;
             }
         }
+
+        TaczConfigGuard.ensureItemExample(ITEMS_CONFIG_FILE);
 
         // 加载配置
         try (Reader reader = Files.newBufferedReader(ITEMS_CONFIG_FILE, StandardCharsets.UTF_8)) {

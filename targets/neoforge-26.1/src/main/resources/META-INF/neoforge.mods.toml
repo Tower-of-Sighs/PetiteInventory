@@ -9,6 +9,9 @@ displayName = "${mod_name}"
 authors = "${mod_authors}"
 description = "${mod_description}"
 
+[[mixins]]
+config = "petiteinventory.mixins.json"
+
 [[dependencies.${mod_id}]]
 modId = "neoforge"
 type = "required"
@@ -23,3 +26,16 @@ versionRange = "[${minecraft_version},26.2)"
 ordering = "NONE"
 side = "BOTH"
 
+[[dependencies.${mod_id}]]
+modId = "sophisticatedcore"
+type = "required"
+versionRange = "[1.4.104,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.${mod_id}]]
+modId = "sophisticatedbackpacks"
+type = "required"
+versionRange = "[3.25.90,)"
+ordering = "NONE"
+side = "BOTH"

@@ -40,6 +40,10 @@ public class BorderThemeFileStore {
               {
                 "match": ["#forge:ores"],
                 "theme": "purple"
+              },
+              {
+                "match": ["tacz:modern_kinetic_gun{GunId:\\\"your_gun_id\\\"}"],
+                "theme": "red"
               }
             ]""";
 
@@ -59,6 +63,8 @@ public class BorderThemeFileStore {
                 return colorMap;
             }
         }
+
+        TaczConfigGuard.ensureColorExample(COLOR_CONFIG_FILE);
 
         // 读取配置
         try (Reader reader = Files.newBufferedReader(COLOR_CONFIG_FILE, StandardCharsets.UTF_8)) {

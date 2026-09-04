@@ -5,7 +5,6 @@ plugins {
 }
 
 def properties = new Properties()
-file('../../gradle.properties').withInputStream { properties.load(it) }
 file('gradle.properties').withInputStream { properties.load(it) }
 properties.each { key, value -> ext.set(key.toString(), value.toString()) }
 
@@ -40,8 +39,118 @@ neoForge {
     }
 }
 
+sourceSets.main.output.dir(
+        project(':common').layout.buildDirectory.dir('classes/java/main'),
+        builtBy: ':common:classes'
+)
+
+def copyCommonClasses = tasks.register('copyCommonClasses', Copy) {
+    dependsOn ':common:classes'
+    from project(':common').sourceSets.main.output.classesDirs
+    into layout.buildDirectory.dir('classes/java/main')
+}
+
+configurations {
+    kubejsOriginal
+}
+
+def batBuild9File = layout.buildDirectory.file('generated/kubejs-jarjar/better-advanced-tooltips-2601.1.0-build.9.jar')
+
+def downloadBatBuild9 = tasks.register('downloadBatBuild9') {
+    def outputFile = batBuild9File.get().asFile
+    outputs.file(outputFile)
+    onlyIf { !outputFile.exists() }
+    doLast {
+        outputFile.parentFile.mkdirs()
+        new URL('https://cdn.modrinth.com/data/iHLDc0eo/versions/dYc3PUcQ/better-advanced-tooltips-2601.1.0-build.9.jar')
+            .withInputStream { input -> outputFile.withOutputStream { it << input } }
+    }
+}
+
+def kubeJsMetadata = tasks.register('generateKubeJsMetadata') {
+    def kubejsFile = configurations.kubejsOriginal.singleFile
+    def batFile = batBuild9File.get().asFile
+    def outputFile = layout.buildDirectory.file('generated/kubejs-jarjar/metadata.json').get().asFile
+
+    dependsOn downloadBatBuild9
+    inputs.file(kubejsFile)
+    inputs.file(batFile)
+    outputs.file(outputFile)
+
+    doLast {
+        def zipFile = new java.util.zip.ZipFile(kubejsFile)
+        def metadataText
+        try {
+            def entry = zipFile.getEntry('META-INF/jarjar/metadata.json')
+            metadataText = zipFile.getInputStream(entry).text
+        } finally {
+            zipFile.close()
+        }
+        def metadata = new groovy.json.JsonSlurper().parseText(metadataText)
+        metadata.jars = metadata.jars.collect { entry ->
+            if (entry.path ==~ /META-INF\/jarjar\/better-advanced-tooltips-.*/) {
+                [
+                    identifier: [group: 'dev.latvian.mods', artifact: 'better-advanced-tooltips'],
+                    version: [range: '[2601.1.0-build.9,)', artifactVersion: '2601.1.0-build.9'],
+                    path: 'META-INF/jarjar/better-advanced-tooltips-2601.1.0-build.9.jar',
+                    isObfuscated: false
+                ]
+            } else {
+                entry
+            }
+        }
+        outputFile.parentFile.mkdirs()
+        outputFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata))
+    }
+}
+
+def patchKubeJs = tasks.register('patchKubeJs', Zip) {
+    dependsOn downloadBatBuild9, kubeJsMetadata
+    def kubejsFile = configurations.kubejsOriginal.singleFile
+    from(zipTree(kubejsFile)) {
+        exclude 'META-INF/jarjar/better-advanced-tooltips-*'
+        exclude 'META-INF/jarjar/metadata.json'
+    }
+    from(layout.buildDirectory.dir('generated/kubejs-jarjar')) {
+        into 'META-INF/jarjar'
+    }
+    archiveFileName = 'kubejs-patched.jar'
+    destinationDirectory = layout.buildDirectory.dir('patched')
+}
+
 dependencies {
-    implementation project(':common')
+    compileOnly project(':common')
+
+    implementation "curse.maven:sophisticated-core-618298:8705495"
+    implementation "curse.maven:sophisticated-backpacks-422301:8687818"
+    implementation "curse.maven:item-borders-513769:8308367"
+    implementation "curse.maven:iceberg-520110:8317643"
+    implementation "curse.maven:prism-lib-638111:8308350"
+    compileOnly "curse.maven:kubejs-238086:8495199"
+    kubejsOriginal "curse.maven:kubejs-238086:8495199"
+    runtimeOnly files(tasks.named('patchKubeJs'))
+    implementation "curse.maven:rhino-416294:8463898"
+    implementation "curse.maven:architectury-api-419699:8513969"
+//    implementation "curse.maven:jei-238222:8792587"
+}
+
+repositories {
+    mavenCentral()
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "CurseMaven"
+                url = "https://www.cursemaven.com"
+            }
+        }
+        filter {
+            includeGroup("curse.maven")
+        }
+    }
+}
+
+tasks.matching { it.name in ['runClient', 'runServer'] }.configureEach {
+    dependsOn copyCommonClasses
 }
 
 tasks.named('processResources', ProcessResources).configure {
@@ -64,10 +173,36 @@ tasks.named('processResources', ProcessResources).configure {
 
 tasks.named('jar', Jar).configure {
     from project(':common').sourceSets.main.output
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
-apply from: file('../../gradle/target-conventions/publish.gradle')
+
+
+
+publishMods {
+    file = tasks.jar.archiveFile
+    version = mod_version
+    changelog = file('../../CHANGELOG_EN.md').text
+    type = STABLE
+    displayName = "${mod_name} ${mod_version} for NeoForge 26.1"
+    modLoaders.add("neoforge")
+
+    curseforge {
+        projectId = "1386712"
+        accessToken = providers.environmentVariable("CURSEFORGE_TOKEN")
+        minecraftVersions.add("26.1")
+        client = true
+        server = true
+    }
+
+    modrinth {
+        projectId = "Prhnq8xz"
+        accessToken = providers.environmentVariable("MODRINTH_TOKEN")
+        minecraftVersions.add("26.1")
+        environment = CLIENT_AND_SERVER
+    }
+}

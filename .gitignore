@@ -117,3 +117,24 @@ runs/
 
 # Avoid ignoring Gradle wrapper jar file (.jar files are usually ignored)
 !gradle-wrapper.jar
+
+# Environment / local secrets
+.env
+.env.*
+
+# Decompiler scratch files
+*.javap
+
+# NeoForge target generated artifacts
+targets/*/.neosrc/
+targets/*/META-INF/
+targets/*/net/
+targets/*/patches/
+targets/*/dev/
+targets/*/assets/
+targets/*/betteradvancedtooltips.mixins.json
+
+# Local target debugging outputs
+targets/*/errs.txt
+targets/*/img.png
+targets/*/img_up.png

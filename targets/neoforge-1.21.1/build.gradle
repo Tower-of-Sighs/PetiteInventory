@@ -110,3 +110,29 @@ tasks.named('jar', Jar).configure {
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
+
+
+
+publishMods {
+    file = tasks.jar.archiveFile
+    version = mod_version
+    changelog = file('../../CHANGELOG_EN.md').text
+    type = STABLE
+    displayName = "${mod_name} ${mod_version} for NeoForge 1.21.1"
+    modLoaders.add("neoforge")
+
+    curseforge {
+        projectId = "1386712"
+        accessToken = providers.environmentVariable("CURSEFORGE_TOKEN")
+        minecraftVersions.add("1.21.1")
+        client = true
+        server = true
+    }
+
+    modrinth {
+        projectId = "Prhnq8xz"
+        accessToken = providers.environmentVariable("MODRINTH_TOKEN")
+        minecraftVersions.add("1.21.1")
+        environment = CLIENT_AND_SERVER
+    }
+}
