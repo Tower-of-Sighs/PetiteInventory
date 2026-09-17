@@ -11,6 +11,7 @@ public class ModConfig {
 
     public static ModConfigSpec.ConfigValue<List<? extends String>> WHITELIST;
     public static ModConfigSpec.ConfigValue<Boolean> ENABLE_INVENTORY;
+    public static ModConfigSpec.ConfigValue<Boolean> ENABLE_OVERLAP_TIDY;
 
     static {
         BUILDER.push("Setting");
@@ -24,6 +25,9 @@ public class ModConfig {
         ENABLE_INVENTORY = BUILDER
                 .comment("Whether inventory will be effort.")
                 .define("enableInventory", true);
+        ENABLE_OVERLAP_TIDY = BUILDER
+                .comment("Automatically spread and repack overlapping items when a container menu opens.")
+                .define("enableOverlapTidy", true);
 
         SPEC = BUILDER.build();
     }

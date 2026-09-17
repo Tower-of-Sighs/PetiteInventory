@@ -19,6 +19,7 @@ public final class PayloadRegistrationEvent {
         registrar.playToServer(PlaceItemPayload.TYPE, PlaceItemPayload.STREAM_CODEC, PlaceItemPayload::handle);
         registrar.playToServer(DropItemPayload.TYPE, DropItemPayload.STREAM_CODEC, DropItemPayload::handle);
         registrar.playToServer(SophisticatedQuickMovePayload.TYPE, SophisticatedQuickMovePayload.STREAM_CODEC, SophisticatedQuickMovePayload::handle);
+        registrar.playToServer(TidyOverlapPayload.TYPE, TidyOverlapPayload.STREAM_CODEC, TidyOverlapPayload::handle);
 
         registrar.playToClient(EditModePayload.TYPE, EditModePayload.STREAM_CODEC, EditModePayload::handle);
         registrar.playToClient(ScreenLayoutModePayload.TYPE, ScreenLayoutModePayload.STREAM_CODEC, ScreenLayoutModePayload::handle);

@@ -44,5 +44,10 @@ public class NetworkChannel {
                 SophisticatedQuickMovePayload::encode,
                 SophisticatedQuickMovePayload::decode,
                 SophisticatedQuickMovePayload::handle);
+
+        CHANNEL.registerMessage(id++, TidyOverlapPayload.class,
+                TidyOverlapPayload::encode,
+                TidyOverlapPayload::decode,
+                TidyOverlapPayload::handle);
     }
 }

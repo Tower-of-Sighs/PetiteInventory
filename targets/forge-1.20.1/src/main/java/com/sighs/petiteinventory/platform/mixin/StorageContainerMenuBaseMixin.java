@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /** Sophisticated Core adapter; policy lives in the internal event subscriber. */
 @Pseudo
-@Mixin(targets = "net.p3pp3rf1y.sophisticatedcore.common.gui.StorageContainerMenuBase", remap = false)
+@Mixin(targets = "net.p3pp3rf1y.sophisticatedcore.common.gui.StorageContainerMenuBase")
 public abstract class StorageContainerMenuBaseMixin implements ISophisticatedStorageMenu {
     @Shadow
     public abstract boolean isStorageInventorySlot(int slot);
@@ -31,7 +31,7 @@ public abstract class StorageContainerMenuBaseMixin implements ISophisticatedSto
         return getNumberOfRows();
     }
 
-    @Inject(method = "quickMoveStack", at = @At("HEAD"), cancellable = true, remap = false)
+    @Inject(method = {"quickMoveStack", "m_7648_"}, at = @At("HEAD"), cancellable = true, require = 0)
     private void publishStorageQuickMove(Player player, int slotIndex,
                                          CallbackInfoReturnable<ItemStack> callback) {
         InventoryEvents.StorageQuickMove event = new InventoryEvents.StorageQuickMove(this, slotIndex, player);

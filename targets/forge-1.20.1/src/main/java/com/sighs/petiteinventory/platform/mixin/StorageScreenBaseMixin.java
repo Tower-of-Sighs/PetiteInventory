@@ -26,15 +26,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /** Minimal rendering adapter for Sophisticated Core's private renderStack method. */
 @Pseudo
-@Mixin(targets = "net.p3pp3rf1y.sophisticatedcore.client.gui.StorageScreenBase", remap = false)
+@Mixin(targets = "net.p3pp3rf1y.sophisticatedcore.client.gui.StorageScreenBase")
 public abstract class StorageScreenBaseMixin {
-    // Core exposes this hook under different mapped names in dev and runtime.
+    // A @Pseudo mixin on a mod class never has its method selectors remapped, so
+    // the vanilla hover test is listed under its official and SRG name; the dev
+    // and production environments each match one of them.
     @Inject(
             method = {"isHovering", "isMouseOverSlot", "m_97774_"},
             at = @At("HEAD"),
             cancellable = true,
-            require = 0,
-            remap = false
+            require = 0
     )
     private void mapSizedItemHitbox(Slot slot, double mouseX, double mouseY,
                                     CallbackInfoReturnable<Boolean> callback) {
@@ -57,8 +58,7 @@ public abstract class StorageScreenBaseMixin {
 
     @Redirect(
             method = "renderStack",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;renderItem(Lnet/minecraft/world/item/ItemStack;II)V"),
-            remap = false
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;renderItem(Lnet/minecraft/world/item/ItemStack;II)V")
     )
     private void renderSizedItem(GuiGraphics graphics, ItemStack stack, int x, int y) {
         Slot slot = findGridSlot(x, y);
@@ -88,8 +88,7 @@ public abstract class StorageScreenBaseMixin {
 
     @Redirect(
             method = "renderStack",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;renderItemDecorations(Lnet/minecraft/client/gui/Font;Lnet/minecraft/world/item/ItemStack;IILjava/lang/String;)V"),
-            remap = false
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;renderItemDecorations(Lnet/minecraft/client/gui/Font;Lnet/minecraft/world/item/ItemStack;IILjava/lang/String;)V")
     )
     private void renderSizedDecorations(GuiGraphics graphics, Font font, ItemStack stack, int x, int y, String text) {
         Slot slot = findGridSlot(x, y);
@@ -103,8 +102,7 @@ public abstract class StorageScreenBaseMixin {
 
     @Redirect(
             method = "renderSuper",
-            at = @At(value = "INVOKE", target = "Lnet/p3pp3rf1y/sophisticatedcore/client/gui/StorageScreenBase;renderSlotHighlight(Lnet/minecraft/client/gui/GuiGraphics;IIII)V"),
-            remap = false
+            at = @At(value = "INVOKE", target = "Lnet/p3pp3rf1y/sophisticatedcore/client/gui/StorageScreenBase;renderSlotHighlight(Lnet/minecraft/client/gui/GuiGraphics;IIII)V")
     )
     private void renderSizedPlayerHighlight(GuiGraphics graphics, int x, int y, int blitOffset, int color) {
         renderSizedHighlight(graphics, x, y, blitOffset, color);
@@ -112,8 +110,7 @@ public abstract class StorageScreenBaseMixin {
 
     @Redirect(
             method = "renderStorageInventorySlots(Lnet/minecraft/client/gui/GuiGraphics;IIZ)V",
-            at = @At(value = "INVOKE", target = "Lnet/p3pp3rf1y/sophisticatedcore/client/gui/StorageScreenBase;renderSlotHighlight(Lnet/minecraft/client/gui/GuiGraphics;IIII)V"),
-            remap = false
+            at = @At(value = "INVOKE", target = "Lnet/p3pp3rf1y/sophisticatedcore/client/gui/StorageScreenBase;renderSlotHighlight(Lnet/minecraft/client/gui/GuiGraphics;IIII)V")
     )
     private void renderSizedStorageHighlight(GuiGraphics graphics, int x, int y, int blitOffset, int color) {
         renderSizedHighlight(graphics, x, y, blitOffset, color);
@@ -121,14 +118,15 @@ public abstract class StorageScreenBaseMixin {
 
     @Redirect(
             method = "renderUpgradeSlots",
-            at = @At(value = "INVOKE", target = "Lnet/p3pp3rf1y/sophisticatedcore/client/gui/StorageScreenBase;renderSlotHighlight(Lnet/minecraft/client/gui/GuiGraphics;IIII)V"),
-            remap = false
+            at = @At(value = "INVOKE", target = "Lnet/p3pp3rf1y/sophisticatedcore/client/gui/StorageScreenBase;renderSlotHighlight(Lnet/minecraft/client/gui/GuiGraphics;IIII)V")
     )
     private void renderSizedUpgradeHighlight(GuiGraphics graphics, int x, int y, int blitOffset, int color) {
         renderSizedHighlight(graphics, x, y, blitOffset, color);
     }
 
-    @Inject(method = "render", at = @At("RETURN"))
+    // Same dual-name reason as the hover hook above: this target is the screen's
+    // vanilla render override, which a @Pseudo mixin cannot resolve a mapping for.
+    @Inject(method = {"render", "m_88315_"}, at = @At("RETURN"), require = 0)
     private void renderCarriedFootprintHighlight(GuiGraphics graphics, int mouseX, int mouseY,
                                                   float partialTick, CallbackInfo callback) {
         StorageScreenBase<?> screen = (StorageScreenBase<?>) (Object) this;
